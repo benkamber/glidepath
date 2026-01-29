@@ -94,7 +94,7 @@ export function EnhancedProjection({
         occupation: profile.occupation,
         level: profile.level,
         metro: profile.metro,
-        savingsRate: profile.savingsRate,
+        savingsRate: profile.savingsRate || 0.25, // Use default if not set
         currentNetWorth,
       },
       targetAge,
