@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes, seedDatabase } from "./routes";
+import { registerAIRoutes } from "./routes/ai";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
@@ -61,6 +62,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+  registerAIRoutes(app); // Add AI routes for data parsing
   await seedDatabase();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
