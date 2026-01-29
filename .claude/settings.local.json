@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)",
+      "Bash(fuser:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs:*)",
+      "Bash(ss:*)",
+      "Bash(npm install:*)",
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
