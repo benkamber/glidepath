@@ -60,6 +60,13 @@ import { WealthGlidepath3D } from "@/components/visualization";
 import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 import { SmartSuggestions } from "@/components/SmartSuggestions";
 
+// New utilities
+import { setItem, getItem, isStorageAvailable, StorageError } from "@/lib/storage";
+import { exportData, importDataFromFile, shouldShowBackupReminder, markBackupReminderShown } from "@/lib/data-backup";
+import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
+import { useToast } from "@/hooks/use-toast";
+import { Download, Upload, AlertTriangle } from "lucide-react";
+
 // Types
 interface Entry {
   id: string;
@@ -271,26 +278,73 @@ export default function NetWorthCalculator() {
   const [showRoast, setShowRoast] = useState(false);
   const [showCOL, setShowCOL] = useState(false);
 
-  // Load from localStorage
+  // Toast notifications
+  const { toast } = useToast();
+
+  // Load from localStorage with error handling
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setEntries(parsed);
-      } catch (e) {
-        console.error("Failed to parse stored data:", e);
+    if (!isStorageAvailable()) {
+      toast({
+        variant: "destructive",
+        title: "Storage Unavailable",
+        description: "localStorage is disabled. Your data will not persist between sessions.",
+      });
+      setIsLoaded(true);
+      return;
+    }
+
+    try {
+      const stored = getItem<Entry[]>(STORAGE_KEY);
+      if (stored) {
+        setEntries(stored);
       }
+    } catch (error) {
+      console.error("Failed to load stored data:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Load Data",
+        description: "Could not load your saved data. Starting fresh.",
+      });
     }
     setIsLoaded(true);
   }, []);
 
-  // Save to localStorage
+  // Save to localStorage with error handling
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    if (isLoaded && entries.length > 0) {
+      const result = setItem(STORAGE_KEY, entries);
+      if (!result.success && result.error) {
+        toast({
+          variant: "destructive",
+          title: result.error.code === 'QUOTA_EXCEEDED' ? "Storage Full" : "Save Failed",
+          description: result.error.message,
+        });
+      }
     }
-  }, [entries, isLoaded]);
+  }, [entries, isLoaded, toast]);
+
+  // Show backup reminder
+  useEffect(() => {
+    if (isLoaded && entries.length > 5 && shouldShowBackupReminder()) {
+      setTimeout(() => {
+        toast({
+          title: "Backup Recommended",
+          description: "It's been a while since you backed up your data. Export your data to stay safe!",
+          action: (
+            <Button
+              size="sm"
+              onClick={() => {
+                handleExportData();
+                markBackupReminderShown();
+              }}
+            >
+              Export Now
+            </Button>
+          ),
+        });
+      }, 3000); // Show after 3 seconds
+    }
+  }, [isLoaded, entries.length]);
 
   // Sorted entries
   const sortedEntries = useMemo(
@@ -414,12 +468,47 @@ export default function NetWorthCalculator() {
     const netWorth = parseFloat(formNetWorth);
     const cash = parseFloat(formCash);
 
-    if (isNaN(netWorth) || isNaN(cash)) return;
+    // Validate numbers
+    const entryValidation = validateNetWorthEntry(netWorth, cash, sortedEntries);
+    if (!entryValidation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: entryValidation.errors.join(". "),
+      });
+      return;
+    }
+
+    // Show warnings if any
+    if (entryValidation.warnings.length > 0) {
+      toast({
+        title: "Please Verify",
+        description: entryValidation.warnings.join(". "),
+      });
+    }
 
     // Validate date
-    if (!parseFlexibleDate(formDateInput)) {
-      alert("Please enter a valid date");
+    const parsedDate = parseFlexibleDate(formDateInput);
+    const dateValidation = validateDateEntry(
+      parsedDate,
+      entries.map((e) => e.date)
+    );
+
+    if (!dateValidation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Date",
+        description: dateValidation.errors.join(". "),
+      });
       return;
+    }
+
+    // Show date warnings if any
+    if (dateValidation.warnings.length > 0) {
+      toast({
+        title: "Date Warning",
+        description: dateValidation.warnings.join(". "),
+      });
     }
 
     const existingIndex = entries.findIndex((entry) => entry.date === formDate);
@@ -435,8 +524,18 @@ export default function NetWorthCalculator() {
       const updated = [...entries];
       updated[existingIndex] = newEntry;
       setEntries(updated);
+      toast({
+        variant: "success",
+        title: "Entry Updated",
+        description: `Updated entry for ${format(new Date(formDate), "MMM d, yyyy")}`,
+      });
     } else {
       setEntries([...entries, newEntry]);
+      toast({
+        variant: "success",
+        title: "Entry Saved",
+        description: `Added entry for ${format(new Date(formDate), "MMM d, yyyy")}`,
+      });
     }
 
     setFormNetWorth("");
@@ -445,13 +544,87 @@ export default function NetWorthCalculator() {
   };
 
   const deleteEntry = (id: string) => {
+    const entry = entries.find((e) => e.id === id);
     setEntries(entries.filter((e) => e.id !== id));
+
+    if (entry) {
+      toast({
+        title: "Entry Deleted",
+        description: `Deleted entry from ${format(new Date(entry.date), "MMM d, yyyy")}`,
+      });
+    }
   };
 
   const handleReset = () => {
     setEntries([]);
     clearProfile();
     localStorage.removeItem(STORAGE_KEY);
+    toast({
+      variant: "destructive",
+      title: "All Data Cleared",
+      description: "All entries and profile data have been removed.",
+    });
+  };
+
+  // Export data handler
+  const handleExportData = () => {
+    try {
+      exportData(entries, profile);
+      toast({
+        variant: "success",
+        title: "Data Exported",
+        description: "Your data has been downloaded as a JSON file.",
+      });
+      markBackupReminderShown();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "Failed to export data. Please try again.",
+      });
+    }
+  };
+
+  // Import data handler
+  const handleImportData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const importedData = await importDataFromFile(file);
+
+      // Confirm before overwriting
+      const shouldOverwrite = window.confirm(
+        `This will import ${importedData.entries.length} entries` +
+        (importedData.profile ? " and profile data" : "") +
+        ". Your current data will be replaced. Continue?"
+      );
+
+      if (!shouldOverwrite) {
+        event.target.value = ""; // Reset file input
+        return;
+      }
+
+      setEntries(importedData.entries);
+      if (importedData.profile) {
+        updateProfile(importedData.profile as any);
+      }
+
+      toast({
+        variant: "success",
+        title: "Data Imported",
+        description: `Successfully imported ${importedData.entries.length} entries.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: error.message || "Failed to import data. Please check the file format.",
+      });
+    }
+
+    // Reset file input
+    event.target.value = "";
   };
 
   const loadEntryToForm = useCallback((entry: Entry) => {
@@ -485,6 +658,36 @@ export default function NetWorthCalculator() {
               currentNetWorth={latestEntry?.totalNetWorth ?? null}
               profile={profile}
             />
+            {/* Export Data Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportData}
+              disabled={entries.length === 0}
+              title="Export your data as JSON backup"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+
+            {/* Import Data Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => document.getElementById('import-file')?.click()}
+              title="Import data from JSON backup"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+            <input
+              id="import-file"
+              type="file"
+              accept=".json"
+              onChange={handleImportData}
+              className="hidden"
+            />
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="text-destructive">
