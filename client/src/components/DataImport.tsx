@@ -99,41 +99,61 @@ export function DataImport({ onImport }: DataImportProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          AI-Powered Data Import
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <Upload className="h-6 w-6" />
+          🚀 Bulk Import: Dump ALL Your Historical Data Here
         </CardTitle>
-        <CardDescription>
-          Paste raw data from Google Sheets, Excel, or any spreadsheet. AI will automatically
-          detect dates, net worth, and cash values.
+        <CardDescription className="text-base">
+          <strong>Paste MESSY, RAW data from anywhere:</strong> Google Sheets, Excel, Mint, Personal Capital,
+          bank statements, text files, or just copy-paste cells. AI parses ANY format automatically.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Instructions */}
-        <Alert>
-          <Sparkles className="h-4 w-4" />
-          <AlertDescription>
-            <strong>How it works:</strong> Just paste your data in any format. The AI will
-            understand columns, dates, and amounts automatically. Examples: CSV, TSV, copied
-            spreadsheet cells, or even sentences like "On Jan 1 2024 I had $50k net worth with $10k cash"
+        <Alert className="border-primary/50 bg-primary/5">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <AlertDescription className="text-sm">
+            <div className="space-y-2">
+              <p className="font-semibold text-base">✨ AI reads ANY format - no cleanup needed!</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>Copy-paste directly from Google Sheets, Excel, Mint, Personal Capital</li>
+                <li>Drag-select cells and paste (tabs, commas, spaces - all work)</li>
+                <li>Text files from your notes app</li>
+                <li>Even sentences: "Jan 2024: $50k net worth, $10k liquid"</li>
+                <li>Mixed formats, missing columns, typos - AI figures it out</li>
+              </ul>
+              <p className="text-xs italic pt-2">💡 Pro tip: Paste years of data at once instead of entering manually!</p>
+            </div>
           </AlertDescription>
         </Alert>
 
         {/* Input Area */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Paste your data here:</label>
+          <label className="text-sm font-medium">📋 Paste ALL your historical tracking data (years of data accepted):</label>
           <Textarea
             value={rawData}
             onChange={(e) => setRawData(e.target.value)}
-            placeholder={`Examples:
+            placeholder={`Paste ANYTHING - AI will parse it! Examples:
 
-Date	Net Worth	Cash
-1/1/2024	$50,000	$10,000
-2/1/2024	$55,000	$12,000
-3/1/2024	$58,000	$11,000
+From spreadsheet (with tabs):
+Date	Net Worth	Cash	Investments
+1/1/2023	$50,000	$10,000	$35,000
+2/1/2023	$55,000	$12,000	$38,000
 
-Or any other format - AI will figure it out!`}
-            className="min-h-[200px] font-mono text-sm"
+From text file:
+Jan 2023: NW $50k, liquid $10k
+Feb 2023: NW $55k, liquid $12k
+
+From Mint export (CSV):
+date,net_worth,cash
+01/01/2023,50000,10000
+
+Messy format:
+2023-01-01 | Total: $50,000 (Cash: $10k)
+2/1/23 - Worth: 55000, Checking: 12000
+
+AI understands ALL formats - just paste and click Parse!`}
+            className="min-h-[250px] font-mono text-sm"
             disabled={isParsing}
           />
         </div>

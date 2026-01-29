@@ -961,7 +961,7 @@ export default function NetWorthCalculator() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cash">Cash (Liquid)</Label>
+                  <Label htmlFor="cash">Cash & Liquid Assets</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
@@ -975,6 +975,9 @@ export default function NetWorthCalculator() {
                       required
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    ALL liquid assets: checking, savings, money market, CDs, etc.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
