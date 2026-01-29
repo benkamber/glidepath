@@ -281,6 +281,7 @@ export default function NetWorthCalculator() {
   const [formDateInput, setFormDateInput] = useState(format(new Date(), "MM/dd/yyyy"));
   const [formNetWorth, setFormNetWorth] = useState("");
   const [formCash, setFormCash] = useState("");
+  const [formInvestment, setFormInvestment] = useState("");
 
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
@@ -506,6 +507,7 @@ export default function NetWorthCalculator() {
 
     const netWorth = parseFloat(formNetWorth);
     const cash = parseFloat(formCash);
+    const investment = formInvestment ? parseFloat(formInvestment) : (netWorth - cash);
 
     // Validate numbers
     const entryValidation = validateNetWorthEntry(netWorth, cash, sortedEntries);
@@ -557,6 +559,7 @@ export default function NetWorthCalculator() {
       date: formDate,
       totalNetWorth: netWorth,
       cash: cash,
+      investment: investment,
     };
 
     if (existingIndex >= 0) {
@@ -579,6 +582,7 @@ export default function NetWorthCalculator() {
 
     setFormNetWorth("");
     setFormCash("");
+    setFormInvestment("");
     setFormDateInput(format(new Date(), "MM/dd/yyyy"));
   };
 
@@ -963,6 +967,28 @@ export default function NetWorthCalculator() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="investment" className="flex items-center justify-between">
+                    <span>Investments (Market-exposed)</span>
+                    <span className="text-xs text-muted-foreground">Optional</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="investment"
+                      type="number"
+                      step="0.01"
+                      placeholder="Auto-calculated if blank"
+                      value={formInvestment}
+                      onChange={(e) => setFormInvestment(e.target.value)}
+                      className="pl-7"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Amount exposed to market returns. Auto-calculated as Net Worth - Cash if left blank.
+                  </p>
                 </div>
 
                 <Button type="submit" className="w-full">
