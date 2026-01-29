@@ -61,7 +61,7 @@ import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 import { SmartSuggestions } from "@/components/SmartSuggestions";
 
 // New utilities
-import { setItem, getItem, isStorageAvailable, StorageError } from "@/lib/storage";
+import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
 import { exportData, importDataFromFile, shouldShowBackupReminder, markBackupReminderShown } from "@/lib/data-backup";
 import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
@@ -558,7 +558,7 @@ export default function NetWorthCalculator() {
   const handleReset = () => {
     setEntries([]);
     clearProfile();
-    localStorage.removeItem(STORAGE_KEY);
+    removeItem(STORAGE_KEY);
     toast({
       variant: "destructive",
       title: "All Data Cleared",
@@ -566,8 +566,8 @@ export default function NetWorthCalculator() {
     });
   };
 
-  // Export data handler
-  const handleExportData = () => {
+  // Export data handler (useCallback to allow early reference)
+  const handleExportData = useCallback(() => {
     try {
       exportData(entries, profile);
       toast({
@@ -583,37 +583,39 @@ export default function NetWorthCalculator() {
         description: "Failed to export data. Please try again.",
       });
     }
-  };
+  }, [entries, profile, toast]);
 
-  // Import data handler
-  const handleImportData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Import data handler (useCallback to allow early reference)
+  const handleImportData = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
       const importedData = await importDataFromFile(file);
 
-      // Confirm before overwriting
-      const shouldOverwrite = window.confirm(
-        `This will import ${importedData.entries.length} entries` +
-        (importedData.profile ? " and profile data" : "") +
-        ". Your current data will be replaced. Continue?"
-      );
-
-      if (!shouldOverwrite) {
-        event.target.value = ""; // Reset file input
-        return;
-      }
-
-      setEntries(importedData.entries);
-      if (importedData.profile) {
-        updateProfile(importedData.profile as any);
-      }
-
+      // Show confirmation toast instead of window.confirm
       toast({
-        variant: "success",
-        title: "Data Imported",
-        description: `Successfully imported ${importedData.entries.length} entries.`,
+        title: "Import Data?",
+        description: `Import ${importedData.entries.length} entries? Current data will be replaced.`,
+        action: (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => {
+              setEntries(importedData.entries);
+              if (importedData.profile) {
+                updateProfile(importedData.profile as any);
+              }
+              toast({
+                variant: "success",
+                title: "Data Imported",
+                description: `Successfully imported ${importedData.entries.length} entries.`,
+              });
+            }}
+          >
+            Import
+          </Button>
+        ),
       });
     } catch (error: any) {
       toast({
@@ -625,7 +627,7 @@ export default function NetWorthCalculator() {
 
     // Reset file input
     event.target.value = "";
-  };
+  }, [toast, updateProfile]);
 
   const loadEntryToForm = useCallback((entry: Entry) => {
     setFormDate(entry.date);
@@ -1447,7 +1449,7 @@ export default function NetWorthCalculator() {
           </p>
           <button
             onClick={() => {
-              localStorage.removeItem('nw_tracker_onboarded');
+              removeItem('nw_tracker_onboarded');
               window.location.reload();
             }}
             className="text-primary hover:underline"
