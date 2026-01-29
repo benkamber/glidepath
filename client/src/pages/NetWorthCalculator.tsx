@@ -56,7 +56,7 @@ import { PercentileContext } from "@/components/PercentileContext";
 import { EnhancedProjection } from "@/components/EnhancedProjection";
 import { ShareableCard } from "@/components/ShareableCard";
 import { RoastMode } from "@/components/RoastMode";
-import { COLComparison } from "@/components/COLComparison";
+import { COLComparisonSimplified } from "@/components/COLComparisonSimplified";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
 import { inferSavingsRate } from "@/models/wealth-model";
@@ -810,16 +810,26 @@ export default function NetWorthCalculator() {
           />
         )}
 
-        {/* COL Comparison */}
+        {/* COL Comparison - Simplified with International Cities */}
         {showCOL && latestEntry && profile && (
-          <COLComparison
+          <COLComparisonSimplified
             currentMetro={profile.metro}
-            currentSalary={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+            currentSalary={profile.totalCompensation || getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
             currentNetWorth={latestEntry.totalNetWorth}
             age={profile.age}
             occupation={profile.occupation}
             level={profile.level}
             savingsRate={inferredSavingsRate}
+            yearsOfHistoricalData={
+              sortedEntries.length >= 2
+                ? Math.floor(
+                    differenceInDays(
+                      new Date(sortedEntries[sortedEntries.length - 1].date),
+                      new Date(sortedEntries[0].date)
+                    ) / 365
+                  )
+                : 0
+            }
           />
         )}
 
