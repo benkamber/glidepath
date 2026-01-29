@@ -281,6 +281,7 @@ export default function NetWorthCalculator() {
   const [formDateInput, setFormDateInput] = useState(format(new Date(), "MM/dd/yyyy"));
   const [formNetWorth, setFormNetWorth] = useState("");
   const [formCash, setFormCash] = useState("");
+  const [formInvestmentPercent, setFormInvestmentPercent] = useState(""); // Optional override
 
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
@@ -507,8 +508,13 @@ export default function NetWorthCalculator() {
     const netWorth = parseFloat(formNetWorth);
     const cash = parseFloat(formCash);
 
-    // Calculate investment amount from profile target allocation
-    const investmentPercent = profile?.targetAllocation?.investmentPercent ?? 0.70;
+    // Calculate investment amount - use per-entry override if provided, otherwise profile default
+    let investmentPercent: number;
+    if (formInvestmentPercent && formInvestmentPercent.trim() !== "") {
+      investmentPercent = parseFloat(formInvestmentPercent) / 100;
+    } else {
+      investmentPercent = profile?.targetAllocation?.investmentPercent ?? 0.70;
+    }
     const investment = netWorth * investmentPercent;
 
     // Validate numbers
@@ -584,6 +590,7 @@ export default function NetWorthCalculator() {
 
     setFormNetWorth("");
     setFormCash("");
+    setFormInvestmentPercent("");
     setFormDateInput(format(new Date(), "MM/dd/yyyy"));
   };
 
@@ -968,8 +975,29 @@ export default function NetWorthCalculator() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="investmentPercent" className="flex items-center justify-between">
+                    <span>% Invested (Market-exposed)</span>
+                    <span className="text-xs text-muted-foreground">Optional Override</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="investmentPercent"
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="100"
+                      placeholder={`Default: ${Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}% (from profile)`}
+                      value={formInvestmentPercent}
+                      onChange={(e) => setFormInvestmentPercent(e.target.value)}
+                      className="pr-7"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Investment allocation is set in your profile (currently {Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}% invested)
+                    Override your profile allocation ({Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}%) for this specific entry. Leave blank to use profile default.
                   </p>
                 </div>
 
