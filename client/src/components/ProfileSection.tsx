@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, User, Briefcase, MapPin, Percent } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Briefcase, MapPin, Percent, PieChart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,8 @@ import {
   type CareerLevel,
   type Metro,
 } from '@/data/bls-wage-data';
-import type { UserProfile } from '@/hooks/use-user-profile';
+import type { UserProfile, TargetAllocation } from '@/hooks/use-user-profile';
+import { validateAllocation } from '@/hooks/use-user-profile';
 
 interface ProfileSectionProps {
   profile: UserProfile | null;
@@ -211,6 +212,145 @@ export function ProfileSection({
 
           {/* Savings Rate - REMOVED: Now inferred from historical data */}
           {/* This provides more accurate modeling based on actual behavior */}
+
+          {/* Target Asset Allocation */}
+          <div className="space-y-4 pt-4 border-t">
+            <Label className="flex items-center gap-2 text-base font-semibold">
+              <PieChart className="h-4 w-4" />
+              Target Asset Allocation
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              How you typically allocate your wealth. Used for Monte Carlo projections.
+            </p>
+
+            {/* Cash Percentage */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="cash-percent" className="text-sm">
+                  💵 Cash & Equivalents
+                </Label>
+                <span className="text-sm font-medium">
+                  {Math.round((profile?.targetAllocation?.cashPercent ?? 0.20) * 100)}%
+                </span>
+              </div>
+              <Slider
+                id="cash-percent"
+                min={0}
+                max={100}
+                step={5}
+                value={[(profile?.targetAllocation?.cashPercent ?? 0.20) * 100]}
+                onValueChange={([value]) => {
+                  const newAllocation: TargetAllocation = {
+                    cashPercent: value / 100,
+                    investmentPercent: profile?.targetAllocation?.investmentPercent ?? 0.70,
+                    otherPercent: profile?.targetAllocation?.otherPercent ?? 0.10,
+                  };
+                  onProfileChange({ targetAllocation: newAllocation });
+                }}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Savings accounts, checking, money market
+              </p>
+            </div>
+
+            {/* Investment Percentage */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="investment-percent" className="text-sm">
+                  📈 Market Investments
+                </Label>
+                <span className="text-sm font-medium">
+                  {Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}%
+                </span>
+              </div>
+              <Slider
+                id="investment-percent"
+                min={0}
+                max={100}
+                step={5}
+                value={[(profile?.targetAllocation?.investmentPercent ?? 0.70) * 100]}
+                onValueChange={([value]) => {
+                  const newAllocation: TargetAllocation = {
+                    cashPercent: profile?.targetAllocation?.cashPercent ?? 0.20,
+                    investmentPercent: value / 100,
+                    otherPercent: profile?.targetAllocation?.otherPercent ?? 0.10,
+                  };
+                  onProfileChange({ targetAllocation: newAllocation });
+                }}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Stocks, bonds, ETFs, mutual funds (brokerage, 401k, IRA)
+              </p>
+            </div>
+
+            {/* Other Assets Percentage */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="other-percent" className="text-sm">
+                  🏠 Other Assets
+                </Label>
+                <span className="text-sm font-medium">
+                  {Math.round((profile?.targetAllocation?.otherPercent ?? 0.10) * 100)}%
+                </span>
+              </div>
+              <Slider
+                id="other-percent"
+                min={0}
+                max={100}
+                step={5}
+                value={[(profile?.targetAllocation?.otherPercent ?? 0.10) * 100]}
+                onValueChange={([value]) => {
+                  const newAllocation: TargetAllocation = {
+                    cashPercent: profile?.targetAllocation?.cashPercent ?? 0.20,
+                    investmentPercent: profile?.targetAllocation?.investmentPercent ?? 0.70,
+                    otherPercent: value / 100,
+                  };
+                  onProfileChange({ targetAllocation: newAllocation });
+                }}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Real estate equity, vehicles, collectibles, crypto
+              </p>
+            </div>
+
+            {/* Allocation Summary */}
+            <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>Total Allocation:</span>
+                <span className={
+                  Math.abs(
+                    (profile?.targetAllocation?.cashPercent ?? 0.20) +
+                    (profile?.targetAllocation?.investmentPercent ?? 0.70) +
+                    (profile?.targetAllocation?.otherPercent ?? 0.10) - 1.0
+                  ) < 0.01
+                    ? "font-semibold text-green-600 dark:text-green-400"
+                    : "font-semibold text-destructive"
+                }>
+                  {Math.round(
+                    ((profile?.targetAllocation?.cashPercent ?? 0.20) +
+                    (profile?.targetAllocation?.investmentPercent ?? 0.70) +
+                    (profile?.targetAllocation?.otherPercent ?? 0.10)) * 100
+                  )}%
+                </span>
+              </div>
+              {(() => {
+                const allocation = profile?.targetAllocation ?? {
+                  cashPercent: 0.20,
+                  investmentPercent: 0.70,
+                  otherPercent: 0.10,
+                };
+                const validation = validateAllocation(allocation);
+                return !validation.isValid && (
+                  <p className="text-xs text-destructive">
+                    {validation.error}
+                  </p>
+                );
+              })()}
+            </div>
+          </div>
 
           {!isComplete && (
             <p className="text-sm text-amber-600 dark:text-amber-400">

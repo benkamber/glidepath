@@ -281,7 +281,6 @@ export default function NetWorthCalculator() {
   const [formDateInput, setFormDateInput] = useState(format(new Date(), "MM/dd/yyyy"));
   const [formNetWorth, setFormNetWorth] = useState("");
   const [formCash, setFormCash] = useState("");
-  const [formInvestment, setFormInvestment] = useState("");
 
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
@@ -508,15 +507,9 @@ export default function NetWorthCalculator() {
     const netWorth = parseFloat(formNetWorth);
     const cash = parseFloat(formCash);
 
-    // Calculate investment amount from percentage or auto-calculate
-    let investment: number;
-    if (formInvestment) {
-      const investmentPercent = parseFloat(formInvestment) / 100;
-      investment = netWorth * investmentPercent;
-    } else {
-      // Auto-calculate: assume everything except cash is invested
-      investment = netWorth - cash;
-    }
+    // Calculate investment amount from profile target allocation
+    const investmentPercent = profile?.targetAllocation?.investmentPercent ?? 0.70;
+    const investment = netWorth * investmentPercent;
 
     // Validate numbers
     const entryValidation = validateNetWorthEntry(netWorth, cash, sortedEntries);
@@ -591,7 +584,6 @@ export default function NetWorthCalculator() {
 
     setFormNetWorth("");
     setFormCash("");
-    setFormInvestment("");
     setFormDateInput(format(new Date(), "MM/dd/yyyy"));
   };
 
@@ -976,29 +968,8 @@ export default function NetWorthCalculator() {
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="investment" className="flex items-center justify-between">
-                    <span>% Invested (Market-exposed)</span>
-                    <span className="text-xs text-muted-foreground">Optional</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="investment"
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      placeholder="Auto: (Net Worth - Cash) / Net Worth"
-                      value={formInvestment}
-                      onChange={(e) => setFormInvestment(e.target.value)}
-                      className="pr-7"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
-                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Percentage of net worth exposed to market returns. Used for Monte Carlo projections.
+                    Investment allocation is set in your profile (currently {Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}% invested)
                   </p>
                 </div>
 
