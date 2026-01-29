@@ -69,6 +69,10 @@ import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 import { AIInsights } from "@/components/AIInsights";
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 import { DataSources } from "@/components/DataSources";
+import { DataImport } from "@/components/DataImport";
+import { MonteCarloRunner } from "@/components/monte-carlo/MonteCarloRunner";
+import { MonteCarloResults } from "@/components/monte-carlo/MonteCarloResults";
+import type { AggregatedResults } from "@/lib/monte-carlo";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
@@ -83,6 +87,7 @@ interface Entry {
   date: string;
   totalNetWorth: number;
   cash: number;
+  investment?: number; // Investment amount (if not specified, calculated as totalNetWorth - cash)
 }
 
 interface MonteCarloResult {
@@ -283,6 +288,9 @@ export default function NetWorthCalculator() {
 
   // SWR settings
   const [swrUseCashOnly, setSwrUseCashOnly] = useState(false);
+
+  // Monte Carlo results
+  const [monteCarloResults, setMonteCarloResults] = useState<AggregatedResults | null>(null);
 
   // Feature toggles
   const [showRoast, setShowRoast] = useState(false);
@@ -1428,6 +1436,39 @@ export default function NetWorthCalculator() {
               </div>
             </TabsContent>
           </Tabs>
+        )}
+
+        {/* Data Import - AI-Powered */}
+        <DataImport
+          onImport={(importedEntries) => {
+            // Convert imported entries to Entry format and add them
+            const newEntries = importedEntries.map(ie => ({
+              id: Date.now().toString() + Math.random(),
+              date: ie.date,
+              totalNetWorth: ie.totalNetWorth,
+              cash: ie.cash,
+              investment: ie.investment,
+            }));
+            setEntries([...entries, ...newEntries]);
+          }}
+        />
+
+        {/* Monte Carlo Simulation */}
+        {entries.length >= 2 && profile && latestEntry && (
+          <div className="space-y-6">
+            <MonteCarloRunner
+              currentNetWorth={latestEntry.totalNetWorth}
+              currentCash={latestEntry.cash}
+              monthlyIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp}
+              monthlyExpenses={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp * (1 - inferredSavingsRate)}
+              savingsRate={inferredSavingsRate}
+              onResults={(results) => setMonteCarloResults(results)}
+            />
+
+            {monteCarloResults && (
+              <MonteCarloResults results={monteCarloResults} />
+            )}
+          </div>
         )}
 
         {/* Data Sources & Methodology */}
