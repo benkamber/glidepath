@@ -52,6 +52,7 @@ import { COLComparison } from "@/components/COLComparison";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
 import { inferSavingsRate } from "@/models/wealth-model";
+import { wealthByAge, getBracketForAge } from "@/data/scf-data";
 
 // New analysis components
 import { VelocityChart } from "@/components/VelocityChart";
@@ -1119,7 +1120,24 @@ export default function NetWorthCalculator() {
         </div>
 
         {/* Unified Chart System - New Advanced Visualization */}
-        {entries.length >= 2 && profile && latestEntry && (
+        {entries.length >= 2 && profile && latestEntry && (() => {
+          // Generate percentile bands for peer comparison
+          const percentileData = Array.from({ length: 80 }, (_, i) => {
+            const age = 18 + i; // Ages 18-97
+            const bracket = getBracketForAge(age);
+            const data = wealthByAge[bracket];
+            return {
+              age,
+              p10: data?.p10 || 0,
+              p25: data?.p25 || 0,
+              p50: data?.p50 || 0,
+              p75: data?.p75 || 0,
+              p90: data?.p90 || 0,
+              p95: data?.p95 || 0,
+            };
+          });
+
+          return (
           <UnifiedChartSystem
             entries={entries.map(e => ({
               date: e.date,
@@ -1134,7 +1152,7 @@ export default function NetWorthCalculator() {
                     yearByYear: Array.from({ length: 10 }, (_, i) => ({
                       age: profile.age + i + 1,
                       expectedNW: latestEntry
-                        ? latestEntry.totalNetWorth * Math.pow(1 + annualizedNetWorthGrowth / 100, i + 1)
+                        ? latestEntry.totalNetWorth * Math.pow(1 + annualizedNetWorthGrowth, i + 1)
                         : 0,
                       income: getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp,
                     })),
@@ -1147,9 +1165,11 @@ export default function NetWorthCalculator() {
               { name: "Chubby FIRE", amount: 2500000, color: "#6366f1" },
               { name: "Fat FIRE", amount: 4000000, color: "#f59e0b" },
             ]}
+            percentileData={percentileData}
             currentAge={profile?.age}
           />
-        )}
+          );
+        })()}
 
         {/* Enhanced Projection with Career Context */}
         <EnhancedProjection

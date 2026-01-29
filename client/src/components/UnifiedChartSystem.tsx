@@ -141,11 +141,9 @@ export function UnifiedChartSystem({
   // Prepare chart data
   const chartData = useMemo(() => {
     return filteredEntries.map(entry => {
+      const entryDate = new Date(entry.date);
       const data: any = {
-        date: new Date(entry.date).toLocaleDateString('en-US', {
-          month: 'short',
-          year: '2-digit',
-        }),
+        date: entryDate.getFullYear().toString(), // Show full year for better trendline visibility
         fullDate: entry.date,
       };
 
@@ -210,10 +208,7 @@ export function UnifiedChartSystem({
           futureDate.setFullYear(futureDate.getFullYear() + i + 1);
 
           data.push({
-            date: futureDate.toLocaleDateString('en-US', {
-              month: 'short',
-              year: '2-digit',
-            }),
+            date: futureDate.getFullYear().toString(), // Match main data format
             fullDate: futureDate.toISOString(),
             projection: proj.expectedNW,
             projectionIncome: proj.income,

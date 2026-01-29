@@ -355,9 +355,9 @@ function MetroCard({
         level,
         metro: metro.metro,
         savingsRate,
+        currentNetWorth,
       },
-      currentNetWorth,
-      futureYears
+      age + futureYears
     );
 
     const currentProjection = projectFutureWealth(
@@ -368,9 +368,9 @@ function MetroCard({
         level,
         metro: currentMetro,
         savingsRate,
+        currentNetWorth,
       },
-      currentNetWorth,
-      futureYears
+      age + futureYears
     );
 
     const targetFinal = targetProjection.yearByYear[targetProjection.yearByYear.length - 1];

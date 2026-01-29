@@ -227,9 +227,10 @@ function detectMilestones(data: UserData): Insight[] {
 
   if (entries.length >= 2) {
     const previousNW = entries[entries.length - 2]?.totalNetWorth || 0;
+    const latestNW = entries[entries.length - 1]?.totalNetWorth || currentNetWorth;
 
     for (const milestone of milestones) {
-      if (previousNW < milestone && currentNetWorth >= milestone) {
+      if (previousNW < milestone && latestNW >= milestone) {
         insights.push({
           id: `milestone-nw-${milestone}`,
           type: "milestone",
@@ -241,7 +242,7 @@ function detectMilestones(data: UserData): Insight[] {
             `This puts you in an increasingly selective wealth bracket.`
           }`,
           dataPoints: [
-            `Current net worth: $${(currentNetWorth / 1000).toFixed(0)}K`,
+            `Current net worth: $${(latestNW / 1000).toFixed(0)}K`,
             `Milestone achieved at age: ${age}`,
             `Time to next milestone: Tracking`,
           ],
@@ -342,12 +343,21 @@ function analyzeAcceleration(data: UserData): Insight[] {
  * Main entry point: Generate all insights
  */
 export function generateInsights(data: UserData): Insight[] {
+  // CRITICAL: Sort entries by date chronologically before any analysis
+  // This prevents date order bugs like "2026-01-28 to 2023-05-16"
+  const sortedData = {
+    ...data,
+    entries: [...data.entries].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    ),
+  };
+
   const allInsights: Insight[] = [
-    ...detectAccumulationPatterns(data),
-    ...analyzeTrends(data),
-    ...detectAnomalies(data),
-    ...detectMilestones(data),
-    ...analyzeAcceleration(data),
+    ...detectAccumulationPatterns(sortedData),
+    ...analyzeTrends(sortedData),
+    ...detectAnomalies(sortedData),
+    ...detectMilestones(sortedData),
+    ...analyzeAcceleration(sortedData),
   ];
 
   // Sort by significance
