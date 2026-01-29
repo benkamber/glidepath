@@ -1,0 +1,243 @@
+import { useState, useEffect } from 'react';
+import { ChevronDown, ChevronUp, User, Briefcase, MapPin, Percent } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  getOccupationOptions,
+  getLevelOptions,
+  getMetroOptions,
+  getLevelForYears,
+  type Occupation,
+  type CareerLevel,
+  type Metro,
+} from '@/data/bls-wage-data';
+import type { UserProfile } from '@/hooks/use-user-profile';
+
+interface ProfileSectionProps {
+  profile: UserProfile | null;
+  onProfileChange: (updates: Partial<UserProfile>) => void;
+  onInitialize: () => void;
+  isComplete: boolean;
+}
+
+export function ProfileSection({
+  profile,
+  onProfileChange,
+  onInitialize,
+  isComplete,
+}: ProfileSectionProps) {
+  // Default to expanded if profile is incomplete, collapsed if complete
+  const [isExpanded, setIsExpanded] = useState(!isComplete);
+
+  // Update expansion state when completeness changes
+  useEffect(() => {
+    if (!isComplete) {
+      setIsExpanded(true);
+    }
+  }, [isComplete]);
+
+  // Initialize profile if clicking to expand with no profile
+  const handleToggle = () => {
+    if (!profile && !isExpanded) {
+      onInitialize();
+    }
+    setIsExpanded(!isExpanded);
+  };
+
+  // Auto-detect level when years change and autoDetect is enabled
+  useEffect(() => {
+    if (profile?.autoDetectLevel && profile.yearsInWorkforce >= 0) {
+      const detectedLevel = getLevelForYears(profile.yearsInWorkforce);
+      if (detectedLevel !== profile.level) {
+        onProfileChange({ level: detectedLevel });
+      }
+    }
+  }, [profile?.yearsInWorkforce, profile?.autoDetectLevel, profile?.level, onProfileChange]);
+
+  const occupationOptions = getOccupationOptions();
+  const levelOptions = getLevelOptions();
+  const metroOptions = getMetroOptions();
+
+  return (
+    <Card>
+      <CardHeader
+        className="cursor-pointer select-none"
+        onClick={handleToggle}
+      >
+        <CardTitle className="flex items-center justify-between text-lg">
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Your Profile
+            {isComplete && (
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                {profile?.age}yo, {profile?.yearsInWorkforce}yrs in {profile?.occupation?.replace('_', ' ')}
+              </span>
+            )}
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          )}
+        </CardTitle>
+      </CardHeader>
+
+      {isExpanded && (
+        <CardContent className="space-y-6">
+          {/* Age and Years */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="age" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Age
+              </Label>
+              <Input
+                id="age"
+                type="number"
+                min={18}
+                max={80}
+                value={profile?.age ?? ''}
+                onChange={(e) => onProfileChange({ age: parseInt(e.target.value) || 0 })}
+                placeholder="30"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="years" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Years Working
+              </Label>
+              <Input
+                id="years"
+                type="number"
+                min={0}
+                max={50}
+                value={profile?.yearsInWorkforce ?? ''}
+                onChange={(e) => onProfileChange({ yearsInWorkforce: parseInt(e.target.value) || 0 })}
+                placeholder="8"
+              />
+            </div>
+          </div>
+
+          {/* Industry */}
+          <div className="space-y-2">
+            <Label>Industry</Label>
+            <Select
+              value={profile?.occupation ?? ''}
+              onValueChange={(value) => onProfileChange({ occupation: value as Occupation })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select your industry" />
+              </SelectTrigger>
+              <SelectContent>
+                {occupationOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Career Level */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Career Level</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="autoLevel"
+                  checked={profile?.autoDetectLevel ?? true}
+                  onCheckedChange={(checked) =>
+                    onProfileChange({ autoDetectLevel: checked === true })
+                  }
+                />
+                <Label htmlFor="autoLevel" className="text-sm font-normal cursor-pointer">
+                  Auto-detect from years
+                </Label>
+              </div>
+            </div>
+            <Select
+              value={profile?.level ?? ''}
+              onValueChange={(value) => onProfileChange({ level: value as CareerLevel })}
+              disabled={profile?.autoDetectLevel}
+            >
+              <SelectTrigger className={profile?.autoDetectLevel ? 'opacity-60' : ''}>
+                <SelectValue placeholder="Select level" />
+              </SelectTrigger>
+              <SelectContent>
+                {levelOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Metro Area */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Metro Area
+            </Label>
+            <Select
+              value={profile?.metro ?? ''}
+              onValueChange={(value) => onProfileChange({ metro: value as Metro })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select metro area" />
+              </SelectTrigger>
+              <SelectContent>
+                {metroOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Savings Rate */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Percent className="h-4 w-4" />
+                Savings Rate Assumption
+              </Label>
+              <span className="text-sm font-medium">
+                {Math.round((profile?.savingsRate ?? 0.25) * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[Math.round((profile?.savingsRate ?? 0.25) * 100)]}
+              onValueChange={([value]) => onProfileChange({ savingsRate: value / 100 })}
+              min={10}
+              max={50}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Percentage of income assumed to be saved/invested annually
+            </p>
+          </div>
+
+          {!isComplete && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Complete your profile to see how you compare to peers
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
