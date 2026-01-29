@@ -810,6 +810,7 @@ export default function NetWorthCalculator() {
           <RoastMode
             currentNetWorth={latestEntry.totalNetWorth}
             cash={latestEntry.cash}
+            investment={latestEntry.investment}
             profile={profile}
             onClose={() => setShowRoast(false)}
           />

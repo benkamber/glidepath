@@ -11,6 +11,7 @@ import { getWageEstimate, occupationLabels, metroLabels, getCOLMultiplier } from
 interface RoastModeProps {
   currentNetWorth: number;
   cash: number;
+  investment?: number;
   profile: UserProfile;
   onClose: () => void;
 }
@@ -105,6 +106,7 @@ function getHeadline(grade: Grade, percentile: number, occupation: string): stri
 export function RoastMode({
   currentNetWorth,
   cash,
+  investment,
   profile,
   onClose,
 }: RoastModeProps) {
@@ -135,7 +137,13 @@ export function RoastMode({
     const headline = getHeadline(grade, percentile, profile.occupation);
 
     // Calculate some key metrics
-    const cashPercent = currentNetWorth > 0 ? cash / currentNetWorth : 0;
+    const actualCashPercent = currentNetWorth > 0 ? cash / currentNetWorth : 0;
+    const actualInvestmentPercent = investment && currentNetWorth > 0 ? investment / currentNetWorth : 0;
+
+    // Get target allocation from profile
+    const targetCashPercent = profile.targetAllocation?.cashPercent ?? 0.20;
+    const targetInvestmentPercent = profile.targetAllocation?.investmentPercent ?? 0.70;
+
     const annualSavings = wageEstimate.afterTaxComp * ((profile.savingsRate || 0.25) || 0.25);
     const yearsToDouble = annualSavings > 0 ?
       Math.log(2) / Math.log(1 + 0.07 + (annualSavings / Math.max(currentNetWorth, 1))) :
@@ -144,21 +152,27 @@ export function RoastMode({
     // Generate roasts
     const roasts: Roast[] = [];
 
-    // Cash allocation roasts
-    if (cashPercent > 0.5 && currentNetWorth > 50000) {
+    // Cash allocation roasts - compare to TARGET allocation
+    const cashDeviation = actualCashPercent - targetCashPercent;
+    if (cashDeviation > 0.30 && currentNetWorth > 50000) {
       roasts.push({
         type: 'roast',
-        message: `${Math.round(cashPercent * 100)}% of your net worth is sitting in cash. That's not a rainy day fund, that's a flood.`,
+        message: `You're holding ${Math.round(actualCashPercent * 100)}% in cash vs your ${Math.round(targetCashPercent * 100)}% target. That's ${Math.round(cashDeviation * 100)}% too much sitting idle. Inflation isn't taking a break.`,
       });
-    } else if (cashPercent > 0.3 && currentNetWorth > 100000) {
-      roasts.push({
-        type: 'roast',
-        message: `${Math.round(cashPercent * 100)}% in cash at your level? Inflation is literally eating your money for breakfast.`,
-      });
-    } else if (cashPercent < 0.05 && currentNetWorth > 50000) {
+    } else if (cashDeviation > 0.15 && currentNetWorth > 100000) {
       roasts.push({
         type: 'observation',
-        message: `Only ${Math.round(cashPercent * 100)}% in cash. Hope you don't have any emergencies planned.`,
+        message: `${Math.round(actualCashPercent * 100)}% in cash when you target ${Math.round(targetCashPercent * 100)}%. You're ${Math.round(cashDeviation * 100)}pp overweight. Time to deploy some capital?`,
+      });
+    } else if (cashDeviation < -0.10 && currentNetWorth > 50000) {
+      roasts.push({
+        type: 'observation',
+        message: `Only ${Math.round(actualCashPercent * 100)}% in cash (target: ${Math.round(targetCashPercent * 100)}%). Running lean on liquidity. Hope you've got no emergencies brewing.`,
+      });
+    } else if (Math.abs(cashDeviation) < 0.05) {
+      roasts.push({
+        type: 'praise',
+        message: `${Math.round(actualCashPercent * 100)}% cash vs ${Math.round(targetCashPercent * 100)}% target. Nailed the allocation. Someone's been reading Bogleheads.`,
       });
     }
 
@@ -237,7 +251,7 @@ export function RoastMode({
       detail: `Your net worth puts you at the ${percentile}th percentile for Americans age ${profile.age}.`,
     });
 
-    if (cashPercent > 0.2 && currentNetWorth > 50000) {
+    if (actualCashPercent > 0.2 && currentNetWorth > 50000) {
       realTalk.push({
         icon: 'warning',
         title: 'Cash drag',
@@ -248,7 +262,7 @@ export function RoastMode({
     // Generate action items
     const actions: ActionItem[] = [];
 
-    if (cashPercent > 0.3 && currentNetWorth > 50000) {
+    if (actualCashPercent > 0.3 && currentNetWorth > 50000) {
       actions.push({
         priority: 'high',
         action: `Invest ${formatCompact(Math.max(0, cash - 30000))} of excess cash into index funds`,
