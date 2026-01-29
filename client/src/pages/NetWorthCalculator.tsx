@@ -13,6 +13,13 @@ import {
   AreaChart,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +68,7 @@ import { FIRECalculator } from "@/components/fire/FIRECalculator";
 import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 import { AIInsights } from "@/components/AIInsights";
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
+import { DataSources } from "@/components/DataSources";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
@@ -395,6 +403,11 @@ export default function NetWorthCalculator() {
   const annualizedCashGrowth = Math.pow(1 + cashGrowthRate, 365) - 1;
 
   // Growth angle (in degrees)
+  // NOTE: This angle metric is mathematically valid but not particularly meaningful
+  // for interpretation. The normalization (slope / currentNW * 100) creates an
+  // arbitrary scaling that makes the angle hard to interpret.
+  // Velocity and acceleration analysis (first/second derivatives) provide
+  // more rigorous and interpretable insights. Consider deprecating this metric.
   const netWorthAngle = useMemo(() => {
     if (sortedEntries.length < 2) return 0;
     const data = sortedEntries.map((e, i) => ({ x: i, y: e.totalNetWorth }));
@@ -820,8 +833,9 @@ export default function NetWorthCalculator() {
                     <span>{formatPercent(annualizedNetWorthGrowth)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 font-mono">
-                  ANGLE: {netWorthAngle.toFixed(1)}°
+                {/* Angle metric - Consider removing in favor of velocity/acceleration analysis */}
+                <p className="text-xs text-muted-foreground mt-2 font-mono" title="Trajectory angle - less meaningful than velocity/acceleration metrics">
+                  ANGLE: {netWorthAngle.toFixed(1)}° (see velocity chart for better insights)
                 </p>
               </CardContent>
             </Card>
@@ -1416,62 +1430,105 @@ export default function NetWorthCalculator() {
           </Tabs>
         )}
 
-        {/* Entry History */}
+        {/* Data Sources & Methodology */}
+        <DataSources />
+
+        {/* Entry History - Collapsible Ledger */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Entry History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sortedEntries.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-2 font-medium">Date</th>
-                      <th className="text-right py-3 px-2 font-medium">Net Worth</th>
-                      <th className="text-right py-3 px-2 font-medium">Cash</th>
-                      <th className="text-right py-3 px-2 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...sortedEntries].reverse().map((entry) => (
-                      <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="py-3 px-2">
-                          {format(new Date(entry.date), "MMM d, yyyy")}
-                        </td>
-                        <td className="text-right py-3 px-2">
-                          {formatCurrency(entry.totalNetWorth)}
-                        </td>
-                        <td className="text-right py-3 px-2">{formatCurrency(entry.cash)}</td>
-                        <td className="text-right py-3 px-2">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => loadEntryToForm(entry)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteEntry(entry.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                No entries yet. Add your first entry above.
-              </div>
-            )}
+          <CardContent className="pt-6">
+            <Accordion type="single" collapsible defaultValue="history">
+              <AccordionItem value="history">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-semibold">Entry History</span>
+                    <Badge variant="secondary" className="ml-2">
+                      {sortedEntries.length} {sortedEntries.length === 1 ? 'entry' : 'entries'}
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {sortedEntries.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 font-medium">Date</th>
+                            <th className="text-right py-3 px-2 font-medium">Net Worth</th>
+                            <th className="text-right py-3 px-2 font-medium">Cash</th>
+                            <th className="text-right py-3 px-2 font-medium">Investment</th>
+                            <th className="text-right py-3 px-2 font-medium">Change</th>
+                            <th className="text-right py-3 px-2 font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...sortedEntries].reverse().map((entry, idx, arr) => {
+                            const prevEntry = arr[idx + 1];
+                            const change = prevEntry ? entry.totalNetWorth - prevEntry.totalNetWorth : 0;
+                            const changePercent = prevEntry && prevEntry.totalNetWorth !== 0
+                              ? (change / prevEntry.totalNetWorth) * 100
+                              : 0;
+
+                            return (
+                              <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30">
+                                <td className="py-3 px-2">
+                                  {format(new Date(entry.date), "MMM d, yyyy")}
+                                </td>
+                                <td className="text-right py-3 px-2 font-medium">
+                                  {formatCurrency(entry.totalNetWorth)}
+                                </td>
+                                <td className="text-right py-3 px-2">{formatCurrency(entry.cash)}</td>
+                                <td className="text-right py-3 px-2">
+                                  {formatCurrency(entry.investment || (entry.totalNetWorth - entry.cash))}
+                                </td>
+                                <td className={`text-right py-3 px-2 ${
+                                  change > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                                  change < 0 ? 'text-red-600 dark:text-red-400' :
+                                  'text-muted-foreground'
+                                }`}>
+                                  {prevEntry ? (
+                                    <>
+                                      {change > 0 ? '+' : ''}{formatCurrency(change)}
+                                      <span className="text-xs ml-1">
+                                        ({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </td>
+                                <td className="text-right py-3 px-2">
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => loadEntryToForm(entry)}
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => deleteEntry(entry.id)}
+                                      className="text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No entries yet. Add your first entry above.
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 
