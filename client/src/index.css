@@ -12,7 +12,7 @@
   --card: 0 0% 10%;
   --card-foreground: 0 0% 100%;
 
-  --primary: 30 100% 50%;
+  --primary: 210 100% 50%;
   --primary-foreground: 0 0% 0%;
 
   --secondary: 0 0% 15%;
@@ -21,7 +21,7 @@
   --muted: 0 0% 15%;
   --muted-foreground: 0 0% 60%;
 
-  --accent: 30 100% 50%;
+  --accent: 210 90% 45%;
   --accent-foreground: 0 0% 0%;
 
   --destructive: 4 100% 60%;
@@ -33,7 +33,7 @@
 
   --border: 0 0% 20%;
   --input: 0 0% 15%;
-  --ring: 30 100% 50%;
+  --ring: 210 100% 50%;
 
   --radius: 0.25rem;
 
@@ -41,7 +41,7 @@
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Terminal-specific colors */
-  --terminal-glow: 30 100% 50%;
+  --terminal-glow: 210 100% 50%;
   --terminal-surface: 0 0% 10%;
   --terminal-border: 0 0% 20%;
 }

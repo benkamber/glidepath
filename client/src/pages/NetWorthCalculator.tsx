@@ -51,14 +51,15 @@ import { RoastMode } from "@/components/RoastMode";
 import { COLComparison } from "@/components/COLComparison";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
+import { inferSavingsRate } from "@/models/wealth-model";
 
 // New analysis components
 import { VelocityChart } from "@/components/VelocityChart";
 import { DeviationAlert } from "@/components/DeviationAlert";
 import { FIRECalculator } from "@/components/fire/FIRECalculator";
-import { WealthGlidepath3D } from "@/components/visualization";
 import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
-import { SmartSuggestions } from "@/components/SmartSuggestions";
+import { AIInsights } from "@/components/AIInsights";
+import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
@@ -361,6 +362,22 @@ export default function NetWorthCalculator() {
     [sortedEntries]
   );
 
+  // Infer savings rate from historical data (replaces manual input)
+  const inferredSavingsRate = useMemo(() => {
+    if (!profile || entries.length < 2) {
+      return profile?.savingsRate || 0.25; // Use old value if exists, or default 25%
+    }
+
+    const estimatedIncome = getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp;
+    const inferred = inferSavingsRate(
+      entries.map(e => ({ date: e.date, totalNetWorth: e.totalNetWorth })),
+      estimatedIncome,
+      0.07 // 7% annual return assumption
+    );
+
+    return inferred;
+  }, [profile, entries]);
+
   // Growth calculations
   const netWorthGrowthRate = useMemo(
     () => calculateDailyGrowthRate(sortedEntries, "totalNetWorth"),
@@ -650,9 +667,9 @@ export default function NetWorthCalculator() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-terminal-border pb-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-wider text-primary">NET WORTH TERMINAL</h1>
+            <h1 className="text-2xl font-bold tracking-wider text-primary">GLIDEPATH</h1>
             <p className="text-muted-foreground mt-1 text-xs font-mono uppercase tracking-wide">
-              Real-time wealth tracking system
+              Wealth trajectory analysis system
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -773,7 +790,7 @@ export default function NetWorthCalculator() {
             age={profile.age}
             occupation={profile.occupation}
             level={profile.level}
-            savingsRate={profile.savingsRate}
+            savingsRate={inferredSavingsRate}
           />
         )}
 
@@ -935,7 +952,7 @@ export default function NetWorthCalculator() {
           {/* Charts */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg">Growth Trends</CardTitle>
+              <CardTitle className="text-lg">Wealth Trajectory (Unified System)</CardTitle>
             </CardHeader>
             <CardContent>
               {chartData.length >= 2 ? (
@@ -1101,6 +1118,39 @@ export default function NetWorthCalculator() {
           </Card>
         </div>
 
+        {/* Unified Chart System - New Advanced Visualization */}
+        {entries.length >= 2 && profile && latestEntry && (
+          <UnifiedChartSystem
+            entries={entries.map(e => ({
+              date: e.date,
+              totalNetWorth: e.totalNetWorth,
+              cash: e.cash,
+              investment: e.investment || (e.totalNetWorth - e.cash),
+            }))}
+            monteCarloData={monteCarloNetWorth}
+            profileProjection={
+              profile
+                ? {
+                    yearByYear: Array.from({ length: 10 }, (_, i) => ({
+                      age: profile.age + i + 1,
+                      expectedNW: latestEntry
+                        ? latestEntry.totalNetWorth * Math.pow(1 + annualizedNetWorthGrowth / 100, i + 1)
+                        : 0,
+                      income: getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp,
+                    })),
+                  }
+                : undefined
+            }
+            fireThresholds={[
+              { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
+              { name: "Regular FIRE", amount: 1500000, color: "#10b981" },
+              { name: "Chubby FIRE", amount: 2500000, color: "#6366f1" },
+              { name: "Fat FIRE", amount: 4000000, color: "#f59e0b" },
+            ]}
+            currentAge={profile?.age}
+          />
+        )}
+
         {/* Enhanced Projection with Career Context */}
         <EnhancedProjection
           currentNetWorth={latestEntry?.totalNetWorth ?? null}
@@ -1114,14 +1164,14 @@ export default function NetWorthCalculator() {
           <DeviationAlert entries={entries} />
         )}
 
-        {/* Smart Suggestions - AI-powered recommendations */}
+        {/* AI Insights - Observational analysis */}
         {entries.length >= 2 && profile && latestEntry && (
-          <SmartSuggestions
+          <AIInsights
             currentNetWorth={latestEntry.totalNetWorth}
             cash={latestEntry.cash}
             age={profile.age}
             annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
-            savingsRate={profile.savingsRate}
+            savingsRate={inferredSavingsRate}
             entries={entries}
             averageAnnualGrowth={annualizedNetWorthGrowth}
             recentVelocity={
@@ -1160,7 +1210,7 @@ export default function NetWorthCalculator() {
         {/* Advanced Analysis Tools */}
         {entries.length >= 2 && profile && latestEntry && (
           <Tabs defaultValue="fire" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 gap-1">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-1">
               <TabsTrigger value="fire" className="gap-2 text-xs lg:text-sm">
                 <Flame className="h-4 w-4" />
                 <span className="hidden sm:inline">FIRE</span>
@@ -1172,10 +1222,6 @@ export default function NetWorthCalculator() {
               <TabsTrigger value="velocity" className="gap-2 text-xs lg:text-sm">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Velocity</span>
-              </TabsTrigger>
-              <TabsTrigger value="3d" className="gap-2 text-xs lg:text-sm">
-                <Globe className="h-4 w-4" />
-                <span className="hidden sm:inline">3D</span>
               </TabsTrigger>
               <TabsTrigger value="legacy" className="gap-2 text-xs lg:text-sm">
                 <Calculator className="h-4 w-4" />
@@ -1196,7 +1242,7 @@ export default function NetWorthCalculator() {
                 currentNetWorth={latestEntry.totalNetWorth}
                 annualSavings={
                   getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp *
-                  (profile.savingsRate / 100)
+                  inferredSavingsRate
                 }
                 years={10}
                 historicalData={entries}
@@ -1206,35 +1252,6 @@ export default function NetWorthCalculator() {
 
             <TabsContent value="velocity" className="space-y-4 mt-4">
               <VelocityChart entries={entries} />
-            </TabsContent>
-
-            <TabsContent value="3d" className="space-y-4 mt-4">
-              <WealthGlidepath3D
-                historicalData={entries.map((e) => ({
-                  age: profile.age - Math.floor(
-                    (new Date().getTime() - new Date(e.date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-                  ),
-                  netWorth: e.totalNetWorth,
-                }))}
-                monteCarloData={
-                  monteCarloNetWorth && monteCarloNetWorth.percentile5.length > 0
-                    ? {
-                        percentile5: monteCarloNetWorth.percentile5,
-                        percentile25: monteCarloNetWorth.percentile25,
-                        percentile50: monteCarloNetWorth.percentile50,
-                        percentile75: monteCarloNetWorth.percentile75,
-                        percentile95: monteCarloNetWorth.percentile95,
-                        ages: monteCarloNetWorth.dates.map((_, i) => profile.age + i / 365),
-                      }
-                    : undefined
-                }
-                fireThresholds={[
-                  { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
-                  { name: "Regular FIRE", amount: 1500000, color: "#10b981" },
-                  { name: "Chubby FIRE", amount: 2500000, color: "#6366f1" },
-                  { name: "Fat FIRE", amount: 4000000, color: "#f59e0b" },
-                ]}
-              />
             </TabsContent>
 
             <TabsContent value="legacy" className="space-y-4 mt-4">

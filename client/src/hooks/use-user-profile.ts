@@ -9,8 +9,10 @@ export interface UserProfile {
   level: CareerLevel;
   autoDetectLevel: boolean;
   metro: Metro;
-  savingsRate: number;
   education?: EducationLevel;
+  // savingsRate removed - now inferred from historical data
+  // Kept optional for backward compatibility with old profiles
+  savingsRate?: number;
 }
 
 const PROFILE_STORAGE_KEY = 'user-profile';
@@ -22,8 +24,8 @@ const defaultProfile: UserProfile = {
   level: 'senior',
   autoDetectLevel: true,
   metro: 'san_francisco',
-  savingsRate: 0.25,
   education: 'bachelors',
+  // savingsRate removed - will be inferred from data
 };
 
 export function useUserProfile() {

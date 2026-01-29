@@ -171,7 +171,9 @@ export function ProfileSection({
               onValueChange={(value) => onProfileChange({ level: value as CareerLevel })}
               disabled={profile?.autoDetectLevel}
             >
-              <SelectTrigger className={profile?.autoDetectLevel ? 'opacity-60' : ''}>
+              <SelectTrigger
+                className={profile?.autoDetectLevel ? 'cursor-not-allowed' : ''}
+              >
                 <SelectValue placeholder="Select level" />
               </SelectTrigger>
               <SelectContent>
@@ -207,29 +209,8 @@ export function ProfileSection({
             </Select>
           </div>
 
-          {/* Savings Rate */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                <Percent className="h-4 w-4" />
-                Savings Rate Assumption
-              </Label>
-              <span className="text-sm font-medium">
-                {Math.round((profile?.savingsRate ?? 0.25) * 100)}%
-              </span>
-            </div>
-            <Slider
-              value={[Math.round((profile?.savingsRate ?? 0.25) * 100)]}
-              onValueChange={([value]) => onProfileChange({ savingsRate: value / 100 })}
-              min={10}
-              max={50}
-              step={1}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Percentage of income assumed to be saved/invested annually
-            </p>
-          </div>
+          {/* Savings Rate - REMOVED: Now inferred from historical data */}
+          {/* This provides more accurate modeling based on actual behavior */}
 
           {!isComplete && (
             <p className="text-sm text-amber-600 dark:text-amber-400">

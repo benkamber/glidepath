@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { X, Flame, TrendingUp, TrendingDown, AlertTriangle, Lightbulb } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { X, Flame, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -67,7 +67,7 @@ function getGradeColor(grade: Grade): string {
     case 'A': return 'text-emerald-500';
     case 'B': return 'text-blue-500';
     case 'C': return 'text-yellow-500';
-    case 'D': return 'text-orange-500';
+    case 'D': return 'text-blue-500';
     case 'F': return 'text-red-500';
   }
 }
@@ -78,7 +78,7 @@ function getGradeBg(grade: Grade): string {
     case 'A': return 'bg-emerald-500/10 border-emerald-500/30';
     case 'B': return 'bg-blue-500/10 border-blue-500/30';
     case 'C': return 'bg-yellow-500/10 border-yellow-500/30';
-    case 'D': return 'bg-orange-500/10 border-orange-500/30';
+    case 'D': return 'bg-blue-500/10 border-blue-500/30';
     case 'F': return 'bg-red-500/10 border-red-500/30';
   }
 }
@@ -108,6 +108,8 @@ export function RoastMode({
   profile,
   onClose,
 }: RoastModeProps) {
+  const [showModelBreakdown, setShowModelBreakdown] = useState(false);
+
   const analysis = useMemo(() => {
     const percentile = getPercentileForAge(currentNetWorth, profile.age);
 
@@ -285,14 +287,15 @@ export function RoastMode({
       realTalk,
       actions,
       wageEstimate,
+      expectedNW,
     };
   }, [currentNetWorth, cash, profile]);
 
   return (
-    <Card className="border-2 border-orange-500/30 bg-gradient-to-br from-background to-orange-500/5">
+    <Card className="border-2 border-blue-500/30 bg-gradient-to-br from-background to-blue-500/5">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Flame className="h-5 w-5 text-orange-500" />
+          <Flame className="h-5 w-5 text-blue-500" />
           Roast Mode
         </CardTitle>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -316,7 +319,7 @@ export function RoastMode({
         {analysis.roasts.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Flame className="h-4 w-4 text-orange-500" />
+              <Flame className="h-4 w-4 text-blue-500" />
               The Roast
             </h3>
             <div className="space-y-2">
@@ -327,12 +330,12 @@ export function RoastMode({
                     roast.type === 'praise'
                       ? 'bg-emerald-500/10 border border-emerald-500/20'
                       : roast.type === 'roast'
-                      ? 'bg-orange-500/10 border border-orange-500/20'
+                      ? 'bg-blue-500/10 border border-blue-500/20'
                       : 'bg-muted/50 border border-border'
                   }`}
                 >
                   {roast.type === 'praise' && <TrendingUp className="h-4 w-4 text-emerald-500 inline mr-2" />}
-                  {roast.type === 'roast' && <TrendingDown className="h-4 w-4 text-orange-500 inline mr-2" />}
+                  {roast.type === 'roast' && <TrendingDown className="h-4 w-4 text-blue-500 inline mr-2" />}
                   {roast.message}
                 </div>
               ))}
@@ -367,6 +370,141 @@ export function RoastMode({
               </div>
             ))}
           </div>
+        </div>
+
+        <Separator />
+
+        {/* Model Prediction Breakdown */}
+        <div className="space-y-3">
+          <button
+            onClick={() => setShowModelBreakdown(!showModelBreakdown)}
+            className="w-full flex items-center justify-between text-sm font-semibold hover:text-primary transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              How We Predicted {formatCompact(analysis.expectedNW)}
+            </span>
+            {showModelBreakdown ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+
+          {showModelBreakdown && (
+            <div className="space-y-4 p-4 bg-muted/30 rounded-lg text-sm">
+              {/* Summary */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Your Net Worth:</span>
+                  <span className="font-semibold">{formatCurrency(currentNetWorth)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Model Prediction:</span>
+                  <span className="font-semibold">{formatCurrency(analysis.expectedNW)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold">
+                  <span>Delta:</span>
+                  <span className={analysis.isAhead ? 'text-emerald-500' : 'text-amber-500'}>
+                    {analysis.isAhead ? '+' : ''}{formatCurrency(analysis.delta)}
+                    ({(analysis.deltaPercent * 100).toFixed(0)}% {analysis.isAhead ? 'above' : 'below'} expected)
+                  </span>
+                </div>
+              </div>
+
+              {/* Model Calculation */}
+              <div className="space-y-3">
+                <p className="font-semibold">Model Calculation:</p>
+
+                <div className="space-y-1.5 pl-3 border-l-2 border-primary/30">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Starting Point (age {profile.age - profile.yearsInWorkforce}):</span>
+                    <span>$0</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Years working:</span>
+                    <span>{profile.yearsInWorkforce} years</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Estimated salary ({metroLabels[profile.metro]}):</span>
+                    <span>{formatCurrency(analysis.wageEstimate)}/yr</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Assumed savings rate:</span>
+                    <span>{(profile.savingsRate * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Annual savings:</span>
+                    <span>{formatCurrency(analysis.wageEstimate * profile.savingsRate)}/yr</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Investment returns:</span>
+                    <span>7% real</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-1 text-xs">
+                  <p className="text-muted-foreground italic">
+                    Year-by-year accumulation with 7% compound returns
+                  </p>
+                  <p className="text-muted-foreground italic">
+                    = Expected Net Worth: <span className="font-semibold text-foreground">{formatCurrency(analysis.expectedNW)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Possible reasons for delta */}
+              {Math.abs(analysis.deltaPercent) > 0.15 && (
+                <div className="space-y-2 pt-3 border-t border-border">
+                  <p className="font-semibold">Possible reasons for {analysis.isAhead ? 'outperformance' : 'shortfall'}:</p>
+                  <ul className="space-y-1 text-xs text-muted-foreground pl-4">
+                    {analysis.isAhead ? (
+                      <>
+                        <li>✓ Higher actual savings rate</li>
+                        <li>✓ Better investment returns</li>
+                        <li>✓ Additional income (bonuses, equity, side income)</li>
+                        <li>✓ Inheritance or gifts</li>
+                        <li>✓ Starting wealth underestimated</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>• Lower actual savings rate</li>
+                        <li>• Higher cost of living than assumed</li>
+                        <li>• Late career start or career changes</li>
+                        <li>• Major life expenses (medical, family, etc.)</li>
+                        <li>• Investment losses or poor returns</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Assumptions */}
+              <div className="space-y-2 pt-3 border-t border-border">
+                <p className="font-semibold">Key Assumptions:</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>✓ Occupation: {occupationLabels[profile.occupation]}</p>
+                  <p>✓ Level: {profile.level}</p>
+                  <p>✓ Metro: {metroLabels[profile.metro]}</p>
+                  <p>✓ BLS salary estimate: {formatCurrency(analysis.wageEstimate)}</p>
+                  <p>✓ Investment return: 7% real (S&P 500 historical)</p>
+                  <p>✓ Starting age: {profile.age - profile.yearsInWorkforce} (career start)</p>
+                  <p>✓ Starting wealth: $0</p>
+                </div>
+              </div>
+
+              {/* Limitations */}
+              <div className="space-y-2 pt-3 border-t border-border">
+                <p className="font-semibold">Limitations:</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>⚠ Cannot account for: inheritance, equity comp, real estate gains</p>
+                  <p>⚠ Tax treatment simplified</p>
+                  <p>⚠ Assumes consistent savings behavior</p>
+                  <p>⚠ Real estate not modeled separately</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Items */}

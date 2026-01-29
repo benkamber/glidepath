@@ -1,0 +1,507 @@
+import { useState, useMemo } from 'react';
+import {
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Legend,
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import {
+  BarChart3,
+  TrendingUp,
+  Users,
+  Target,
+  Flame,
+  AlertTriangle,
+  Download,
+} from 'lucide-react';
+
+type TimeRange = '1Y' | '5Y' | '10Y' | 'All';
+type DataLayer = 'netWorth' | 'cash' | 'investment';
+type ChartLens = 'none' | 'velocity' | 'peer' | 'projection' | 'fire' | 'deviation';
+
+interface Entry {
+  date: string;
+  totalNetWorth: number;
+  cash: number;
+  investment: number;
+}
+
+interface MonteCarloResult {
+  dates: string[];
+  percentile5: number[];
+  percentile25: number[];
+  percentile50: number[];
+  percentile75: number[];
+  percentile95: number[];
+}
+
+interface ProjectionPoint {
+  age: number;
+  expectedNW: number;
+  income: number;
+}
+
+interface VelocitySegment {
+  startDate: string;
+  endDate: string;
+  velocity: number;
+  acceleration?: number;
+}
+
+interface PercentileBand {
+  age: number;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p95: number;
+}
+
+interface FIRELevel {
+  name: string;
+  amount: number;
+  color: string;
+}
+
+export interface UnifiedChartSystemProps {
+  entries: Entry[];
+  monteCarloData?: MonteCarloResult;
+  profileProjection?: { yearByYear: ProjectionPoint[] };
+  velocityData?: VelocitySegment[];
+  percentileData?: PercentileBand[];
+  fireThresholds?: FIRELevel[];
+  currentAge?: number;
+}
+
+const formatCurrency = (value: number) => {
+  if (Math.abs(value) >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `$${(value / 1_000).toFixed(0)}k`;
+  }
+  return `$${value.toFixed(0)}`;
+};
+
+export function UnifiedChartSystem({
+  entries,
+  monteCarloData,
+  profileProjection,
+  velocityData,
+  percentileData,
+  fireThresholds,
+  currentAge,
+}: UnifiedChartSystemProps) {
+  const [timeRange, setTimeRange] = useState<TimeRange>('All');
+  const [activeLayers, setActiveLayers] = useState<DataLayer[]>(['netWorth']);
+  const [activeLens, setActiveLens] = useState<ChartLens>('none');
+
+  // Filter data by time range
+  const filteredEntries = useMemo(() => {
+    if (timeRange === 'All') return entries;
+
+    const now = new Date();
+    const cutoffDate = new Date();
+
+    switch (timeRange) {
+      case '1Y':
+        cutoffDate.setFullYear(now.getFullYear() - 1);
+        break;
+      case '5Y':
+        cutoffDate.setFullYear(now.getFullYear() - 5);
+        break;
+      case '10Y':
+        cutoffDate.setFullYear(now.getFullYear() - 10);
+        break;
+    }
+
+    return entries.filter(e => new Date(e.date) >= cutoffDate);
+  }, [entries, timeRange]);
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    return filteredEntries.map(entry => {
+      const data: any = {
+        date: new Date(entry.date).toLocaleDateString('en-US', {
+          month: 'short',
+          year: '2-digit',
+        }),
+        fullDate: entry.date,
+      };
+
+      if (activeLayers.includes('netWorth')) {
+        data.netWorth = entry.totalNetWorth;
+      }
+      if (activeLayers.includes('cash')) {
+        data.cash = entry.cash;
+      }
+      if (activeLayers.includes('investment')) {
+        data.investment = entry.investment || (entry.totalNetWorth - entry.cash);
+      }
+
+      return data;
+    });
+  }, [filteredEntries, activeLayers]);
+
+  // Add lens-specific data overlays
+  const enrichedChartData = useMemo(() => {
+    const data = [...chartData];
+
+    // Add velocity overlay
+    if (activeLens === 'velocity' && velocityData) {
+      // Calculate velocity for each point
+      for (let i = 1; i < data.length; i++) {
+        const current = filteredEntries[i];
+        const previous = filteredEntries[i - 1];
+        const timeDiff = new Date(current.date).getTime() - new Date(previous.date).getTime();
+        const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+        const wealthDiff = current.totalNetWorth - previous.totalNetWorth;
+        data[i].velocity = (wealthDiff / daysDiff) * 365; // Annualized
+      }
+    }
+
+    // Add peer comparison percentiles
+    if (activeLens === 'peer' && percentileData && currentAge) {
+      data.forEach((point, i) => {
+        const entry = filteredEntries[i];
+        const entryAge = currentAge - Math.floor(
+          (new Date().getTime() - new Date(entry.date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+        );
+
+        const band = percentileData.find(p => Math.abs(p.age - entryAge) < 1);
+        if (band) {
+          point.p25 = band.p25;
+          point.p50 = band.p50;
+          point.p75 = band.p75;
+          point.p90 = band.p90;
+        }
+      });
+    }
+
+    // Add projection data
+    if (activeLens === 'projection' && (monteCarloData || profileProjection)) {
+      // Add future dates for projection
+      const lastEntry = filteredEntries[filteredEntries.length - 1];
+      const lastDate = new Date(lastEntry.date);
+
+      if (profileProjection) {
+        profileProjection.yearByYear.forEach((proj, i) => {
+          const futureDate = new Date(lastDate);
+          futureDate.setFullYear(futureDate.getFullYear() + i + 1);
+
+          data.push({
+            date: futureDate.toLocaleDateString('en-US', {
+              month: 'short',
+              year: '2-digit',
+            }),
+            fullDate: futureDate.toISOString(),
+            projection: proj.expectedNW,
+            projectionIncome: proj.income,
+          });
+        });
+      }
+    }
+
+    return data;
+  }, [chartData, activeLens, velocityData, percentileData, monteCarloData, profileProjection, filteredEntries, currentAge]);
+
+  // Toggle layer
+  const toggleLayer = (layer: DataLayer) => {
+    setActiveLayers(prev => {
+      if (prev.includes(layer)) {
+        return prev.filter(l => l !== layer);
+      } else {
+        return [...prev, layer];
+      }
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Wealth Trajectory
+          </CardTitle>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Filter Controls */}
+        <div className="space-y-3">
+          {/* Time Range Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="text-sm font-medium">Time Range:</Label>
+            <div className="flex gap-1">
+              {(['1Y', '5Y', '10Y', 'All'] as TimeRange[]).map(range => (
+                <Button
+                  key={range}
+                  variant={timeRange === range ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTimeRange(range)}
+                  className="h-8 px-3"
+                >
+                  {range}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Data Layers */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Label className="text-sm font-medium">Layers:</Label>
+            <div className="flex gap-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="layer-networth"
+                  checked={activeLayers.includes('netWorth')}
+                  onCheckedChange={() => toggleLayer('netWorth')}
+                />
+                <Label htmlFor="layer-networth" className="text-sm cursor-pointer">
+                  Net Worth
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="layer-cash"
+                  checked={activeLayers.includes('cash')}
+                  onCheckedChange={() => toggleLayer('cash')}
+                />
+                <Label htmlFor="layer-cash" className="text-sm cursor-pointer">
+                  Cash
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="layer-investment"
+                  checked={activeLayers.includes('investment')}
+                  onCheckedChange={() => toggleLayer('investment')}
+                />
+                <Label htmlFor="layer-investment" className="text-sm cursor-pointer">
+                  Investment
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Lens Selector */}
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">Analysis Lens:</Label>
+            <Select value={activeLens} onValueChange={(v) => setActiveLens(v as ChartLens)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  <span className="flex items-center gap-2">
+                    📊 Raw Data
+                  </span>
+                </SelectItem>
+                <SelectItem value="velocity">
+                  <span className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Velocity Analysis
+                  </span>
+                </SelectItem>
+                <SelectItem value="peer">
+                  <span className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Peer Comparison
+                  </span>
+                </SelectItem>
+                <SelectItem value="projection">
+                  <span className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Future Projection
+                  </span>
+                </SelectItem>
+                <SelectItem value="fire">
+                  <span className="flex items-center gap-2">
+                    <Flame className="h-4 w-4" />
+                    FIRE Analysis
+                  </span>
+                </SelectItem>
+                <SelectItem value="deviation">
+                  <span className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Deviation Alerts
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Chart */}
+        <div className="h-[400px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={enrichedChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="date"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickFormatter={formatCurrency}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                }}
+                formatter={(value: number) => formatCurrency(value)}
+              />
+              <Legend />
+
+              {/* Base Data Layers */}
+              {activeLayers.includes('netWorth') && (
+                <Line
+                  type="monotone"
+                  dataKey="netWorth"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Net Worth"
+                />
+              )}
+              {activeLayers.includes('cash') && (
+                <Line
+                  type="monotone"
+                  dataKey="cash"
+                  stroke="hsl(142 76% 36%)"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Cash"
+                />
+              )}
+              {activeLayers.includes('investment') && (
+                <Line
+                  type="monotone"
+                  dataKey="investment"
+                  stroke="hsl(197 100% 44%)"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Investment"
+                />
+              )}
+
+              {/* Velocity Lens */}
+              {activeLens === 'velocity' && (
+                <Line
+                  type="monotone"
+                  dataKey="velocity"
+                  stroke="hsl(38 92% 50%)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="Velocity ($/yr)"
+                />
+              )}
+
+              {/* Peer Comparison Lens */}
+              {activeLens === 'peer' && (
+                <>
+                  <Area
+                    type="monotone"
+                    dataKey="p25"
+                    stroke="none"
+                    fill="hsl(var(--muted))"
+                    fillOpacity={0.3}
+                    name="25th %ile"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="p50"
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    name="Median (peers)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="p75"
+                    stroke="none"
+                    fill="hsl(var(--muted))"
+                    fillOpacity={0.3}
+                    name="75th %ile"
+                  />
+                </>
+              )}
+
+              {/* Projection Lens */}
+              {activeLens === 'projection' && (
+                <Line
+                  type="monotone"
+                  dataKey="projection"
+                  stroke="hsl(142 76% 36%)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="Projected Path"
+                />
+              )}
+
+              {/* FIRE Thresholds */}
+              {activeLens === 'fire' && fireThresholds && fireThresholds.map((threshold) => (
+                <ReferenceLine
+                  key={threshold.name}
+                  y={threshold.amount}
+                  stroke={threshold.color}
+                  strokeDasharray="3 3"
+                  label={{
+                    value: threshold.name,
+                    position: 'right',
+                    fill: threshold.color,
+                    fontSize: 12,
+                  }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Legend for active lens */}
+        {activeLens !== 'none' && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
+            <Badge variant="outline" className="gap-1">
+              {activeLens === 'velocity' && '📈 Velocity: Rate of wealth accumulation'}
+              {activeLens === 'peer' && '👥 Peer: SCF percentile bands by age'}
+              {activeLens === 'projection' && '🎯 Projection: Expected future trajectory'}
+              {activeLens === 'fire' && '🔥 FIRE: Financial independence milestones'}
+              {activeLens === 'deviation' && '⚠️ Deviation: Statistical anomaly detection'}
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

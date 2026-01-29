@@ -26,9 +26,60 @@ export interface WealthModelInput {
   occupation: Occupation;
   level?: CareerLevel; // If not provided, derived from years working
   metro: Metro;
-  savingsRate: number; // 0-1, e.g., 0.25 for 25%
+  savingsRate?: number; // 0-1, e.g., 0.25 for 25% (optional - will be inferred if not provided)
   annualReturn?: number; // Default 0.07 (7% real return)
   currentNetWorth?: number; // Optional: for comparison
+}
+
+/**
+ * Infer savings rate from historical wealth data
+ *
+ * Formula: savingsRate = (actualGrowth - investmentGrowth) / totalIncome
+ *
+ * This estimates the percentage of income that was saved by looking at
+ * how much wealth grew beyond what investment returns would explain.
+ */
+export function inferSavingsRate(
+  entries: Array<{ date: string; totalNetWorth: number }>,
+  estimatedAnnualIncome: number,
+  annualReturn: number = 0.07
+): number {
+  if (entries.length < 2 || estimatedAnnualIncome === 0) {
+    return 0.25; // Default conservative estimate: 25%
+  }
+
+  // Calculate total time period in years
+  const firstDate = new Date(entries[0].date);
+  const lastDate = new Date(entries[entries.length - 1].date);
+  const yearsElapsed = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+
+  if (yearsElapsed === 0) return 0.25;
+
+  // Calculate actual wealth growth
+  const startingWealth = entries[0].totalNetWorth;
+  const endingWealth = entries[entries.length - 1].totalNetWorth;
+  const actualGrowth = endingWealth - startingWealth;
+
+  // Estimate investment growth using compound interest
+  // Investment growth = Starting wealth * (1 + r)^t - Starting wealth
+  const estimatedInvestmentGrowth = startingWealth * (Math.pow(1 + annualReturn, yearsElapsed) - 1);
+
+  // Growth from savings = Total growth - Investment growth
+  const growthFromSavings = actualGrowth - estimatedInvestmentGrowth;
+
+  // Total income over period
+  const totalIncome = estimatedAnnualIncome * yearsElapsed;
+
+  // Inferred savings rate
+  const inferredRate = growthFromSavings / totalIncome;
+
+  // Clamp to reasonable bounds (0% to 90%)
+  // If rate is negative or > 90%, return default
+  if (inferredRate < 0 || inferredRate > 0.9 || isNaN(inferredRate)) {
+    return 0.25; // Return conservative default
+  }
+
+  return inferredRate;
 }
 
 export interface YearByYearData {

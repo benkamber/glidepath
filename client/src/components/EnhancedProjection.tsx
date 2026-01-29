@@ -189,6 +189,26 @@ export function EnhancedProjection({
 
   const scenario = projectionScenarios[selectedScenario];
 
+  // Show error state if no data available
+  if (!monteCarloData && !profileProjection) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Target className="h-5 w-5" />
+            Wealth Projection
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="mb-2">No projection data available</p>
+            <p className="text-sm">Add profile information or historical data to see projections</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -227,7 +247,7 @@ export function EnhancedProjection({
                   onCheckedChange={(checked) => setShowProfileLine(checked === true)}
                 />
                 <Label htmlFor="showProfile" className="text-sm cursor-pointer">
-                  Show career projection
+                  Show expected trajectory
                 </Label>
               </div>
 
@@ -300,7 +320,7 @@ export function EnhancedProjection({
                       mc50: 'Median (historical)',
                       mc25: '25th %ile',
                       mc5: '5th %ile',
-                      profile: 'Career projection',
+                      profile: 'Expected trajectory (occupation-based)',
                     };
                     return [formatCurrency(value), labels[name] || name];
                   }}
@@ -398,7 +418,18 @@ export function EnhancedProjection({
           {showProfileLine && profileProjection && (
             <div className="flex items-center gap-2">
               <div className="w-4 h-0.5 bg-emerald-500" />
-              <span>Career projection ({scenario.name})</span>
+              <span>Expected trajectory ({scenario.name})</span>
+              <UITooltip>
+                <TooltipTrigger>
+                  <Info className="h-3 w-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    Based on BLS wage data for your occupation, experience level, and metro area,
+                    combined with historical savings patterns
+                  </p>
+                </TooltipContent>
+              </UITooltip>
             </div>
           )}
         </div>
