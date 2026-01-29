@@ -17,6 +17,7 @@ import {
   getLevelOptions,
   getMetroOptions,
   getLevelForYears,
+  getWageEstimate,
   type Occupation,
   type CareerLevel,
   type Metro,
@@ -208,6 +209,32 @@ export function ProfileSection({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Total Compensation */}
+          <div className="space-y-2">
+            <Label htmlFor="totalComp" className="flex items-center gap-2">
+              💰 Annual Total Compensation (Optional)
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="totalComp"
+                type="number"
+                step="1000"
+                placeholder={`Default: ${profile?.occupation && profile?.level && profile?.metro
+                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+                      getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp
+                    )
+                  : 'Based on BLS data'}`}
+                value={profile?.totalCompensation ?? ''}
+                onChange={(e) => onProfileChange({ totalCompensation: e.target.value ? parseFloat(e.target.value) : undefined })}
+                className="pl-7"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Include ALL comp: base + bonus + equity + benefits. Used for geographic arbitrage calculations.
+            </p>
           </div>
 
           {/* Savings Rate - REMOVED: Now inferred from historical data */}

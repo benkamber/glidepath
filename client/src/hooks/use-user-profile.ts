@@ -21,6 +21,8 @@ export interface UserProfile {
   savingsRate?: number;
   // Target asset allocation for Monte Carlo projections
   targetAllocation?: TargetAllocation;
+  // Total annual compensation (optional override, defaults to BLS data)
+  totalCompensation?: number;
 }
 
 const PROFILE_STORAGE_KEY = 'user-profile';
