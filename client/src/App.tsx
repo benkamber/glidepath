@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import NetWorthCalculator from "@/pages/NetWorthCalculator";
+import Methodology from "@/pages/Methodology";
 import { LandingPage } from "@/components/LandingPage";
 
 const ONBOARDED_KEY = "nw_tracker_onboarded";
@@ -28,9 +29,9 @@ function AppContent() {
     <>
       <Switch>
         <Route path="/" component={NetWorthCalculator} />
+        <Route path="/methodology" component={Methodology} />
         <Route component={NotFound} />
       </Switch>
-      {/* About link in footer handled inside NetWorthCalculator */}
     </>
   );
 }

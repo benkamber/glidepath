@@ -12,7 +12,6 @@ interface RoastModeProps {
   currentNetWorth: number;
   cash: number;
   profile: UserProfile;
-  retirementAccounts?: number;
   onClose: () => void;
 }
 
@@ -107,7 +106,6 @@ export function RoastMode({
   currentNetWorth,
   cash,
   profile,
-  retirementAccounts = 0,
   onClose,
 }: RoastModeProps) {
   const analysis = useMemo(() => {
@@ -136,7 +134,6 @@ export function RoastMode({
 
     // Calculate some key metrics
     const cashPercent = currentNetWorth > 0 ? cash / currentNetWorth : 0;
-    const retirementPercent = currentNetWorth > 0 ? retirementAccounts / currentNetWorth : 0;
     const annualSavings = wageEstimate.afterTaxComp * profile.savingsRate;
     const yearsToDouble = annualSavings > 0 ?
       Math.log(2) / Math.log(1 + 0.07 + (annualSavings / Math.max(currentNetWorth, 1))) :
@@ -208,13 +205,6 @@ export function RoastMode({
     }
 
     // Age-specific roasts
-    if (profile.age >= 35 && retirementPercent < 0.3 && currentNetWorth > 100000) {
-      roasts.push({
-        type: 'roast',
-        message: `Only ${Math.round(retirementPercent * 100)}% in retirement accounts at ${profile.age}? IRS lets you shelter more than that tax-free.`,
-      });
-    }
-
     if (profile.age < 30 && percentile >= 80) {
       roasts.push({
         type: 'praise',
@@ -263,13 +253,6 @@ export function RoastMode({
       });
     }
 
-    if (retirementAccounts < wageEstimate.totalComp * 0.5 && profile.age >= 30) {
-      actions.push({
-        priority: 'high',
-        action: 'Max out 401k/IRA contributions to reduce tax burden',
-      });
-    }
-
     if (profile.savingsRate < 0.20) {
       actions.push({
         priority: 'medium',
@@ -303,7 +286,7 @@ export function RoastMode({
       actions,
       wageEstimate,
     };
-  }, [currentNetWorth, cash, profile, retirementAccounts]);
+  }, [currentNetWorth, cash, profile]);
 
   return (
     <Card className="border-2 border-orange-500/30 bg-gradient-to-br from-background to-orange-500/5">

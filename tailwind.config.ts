@@ -51,7 +51,15 @@ export default {
           foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
           border: "var(--destructive-border)",
         },
+        success: "hsl(var(--success) / <alpha-value>)",
+        warning: "hsl(var(--warning) / <alpha-value>)",
+        info: "hsl(var(--info) / <alpha-value>)",
         ring: "hsl(var(--ring) / <alpha-value>)",
+        terminal: {
+          glow: "hsl(var(--terminal-glow) / <alpha-value>)",
+          surface: "hsl(var(--terminal-surface) / <alpha-value>)",
+          border: "hsl(var(--terminal-border) / <alpha-value>)",
+        },
         chart: {
           "1": "hsl(var(--chart-1) / <alpha-value>)",
           "2": "hsl(var(--chart-2) / <alpha-value>)",

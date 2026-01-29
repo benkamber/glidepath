@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format, differenceInDays, addDays } from "date-fns";
+import { parseFlexibleDate, getDateInputHint } from "@/lib/date-parser";
 import {
   LineChart,
   Line,
@@ -37,10 +38,6 @@ import {
   Trash2,
   Calculator,
   PiggyBank,
-  Wallet,
-  Building2,
-  ChevronDown,
-  ChevronUp,
   Flame,
   Globe,
 } from "lucide-react";
@@ -55,20 +52,20 @@ import { COLComparison } from "@/components/COLComparison";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
 
+// New analysis components
+import { VelocityChart } from "@/components/VelocityChart";
+import { DeviationAlert } from "@/components/DeviationAlert";
+import { FIRECalculator } from "@/components/fire/FIRECalculator";
+import { WealthGlidepath3D } from "@/components/visualization";
+import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
+import { SmartSuggestions } from "@/components/SmartSuggestions";
+
 // Types
 interface Entry {
   id: string;
   date: string;
   totalNetWorth: number;
   cash: number;
-  retirementAccounts: RetirementAccount[];
-}
-
-interface RetirementAccount {
-  id: string;
-  name: string;
-  balance: number;
-  type: "401k" | "ira" | "roth_ira" | "403b" | "other";
 }
 
 interface MonteCarloResult {
@@ -82,8 +79,6 @@ interface MonteCarloResult {
 
 // Constants
 const STORAGE_KEY = "net-worth-tracker-data";
-const IRS_EARLY_WITHDRAWAL_PENALTY = 0.1;
-const ESTIMATED_TAX_RATE = 0.22;
 
 // Helper functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -102,6 +97,8 @@ const formatPercent = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+
+// Date parsing is now handled by @/lib/date-parser
 
 // Calculate linear regression
 const linearRegression = (data: { x: number; y: number }[]) => {
@@ -259,9 +256,9 @@ export default function NetWorthCalculator() {
 
   // Form state
   const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [formDateInput, setFormDateInput] = useState(format(new Date(), "MM/dd/yyyy"));
   const [formNetWorth, setFormNetWorth] = useState("");
   const [formCash, setFormCash] = useState("");
-  const [formRetirementAccounts, setFormRetirementAccounts] = useState<RetirementAccount[]>([]);
 
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
@@ -273,9 +270,6 @@ export default function NetWorthCalculator() {
   // Feature toggles
   const [showRoast, setShowRoast] = useState(false);
   const [showCOL, setShowCOL] = useState(false);
-
-  // Expanded sections
-  const [showRetirementSection, setShowRetirementSection] = useState(false);
 
   // Load from localStorage
   useEffect(() => {
@@ -375,43 +369,6 @@ export default function NetWorthCalculator() {
     };
   }, [latestEntry, swrUseCashOnly]);
 
-  // Retirement account liquidation value
-  const retirementLiquidationValue = useMemo(() => {
-    if (!latestEntry) return null;
-
-    const totalRetirement = latestEntry.retirementAccounts.reduce(
-      (sum, acc) => sum + acc.balance,
-      0
-    );
-
-    const rothAccounts = latestEntry.retirementAccounts.filter(
-      (acc) => acc.type === "roth_ira"
-    );
-    const nonRothAccounts = latestEntry.retirementAccounts.filter(
-      (acc) => acc.type !== "roth_ira"
-    );
-
-    const rothTotal = rothAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-    const nonRothTotal = nonRothAccounts.reduce((sum, acc) => sum + acc.balance, 0);
-
-    const nonRothAfterPenalty = nonRothTotal * (1 - IRS_EARLY_WITHDRAWAL_PENALTY);
-    const nonRothAfterTax = nonRothAfterPenalty * (1 - ESTIMATED_TAX_RATE);
-    const rothAfterTax = rothTotal;
-
-    return {
-      totalRetirement,
-      liquidationValue: nonRothAfterTax + rothAfterTax,
-      penaltyAmount: nonRothTotal * IRS_EARLY_WITHDRAWAL_PENALTY,
-      taxAmount: nonRothAfterPenalty * ESTIMATED_TAX_RATE,
-      breakdown: latestEntry.retirementAccounts.map((acc) => ({
-        ...acc,
-        liquidationValue:
-          acc.type === "roth_ira"
-            ? acc.balance
-            : acc.balance * (1 - IRS_EARLY_WITHDRAWAL_PENALTY) * (1 - ESTIMATED_TAX_RATE),
-      })),
-    };
-  }, [latestEntry]);
 
   // Chart data
   const chartData = useMemo(
@@ -443,27 +400,12 @@ export default function NetWorthCalculator() {
   }, [sortedEntries]);
 
   // Handlers
-  const addRetirementAccountField = () => {
-    setFormRetirementAccounts([
-      ...formRetirementAccounts,
-      { id: generateId(), name: "", balance: 0, type: "401k" },
-    ]);
-  };
-
-  const removeRetirementAccountField = (id: string) => {
-    setFormRetirementAccounts(formRetirementAccounts.filter((acc) => acc.id !== id));
-  };
-
-  const updateRetirementAccountField = (
-    id: string,
-    field: keyof RetirementAccount,
-    value: string | number
-  ) => {
-    setFormRetirementAccounts(
-      formRetirementAccounts.map((acc) =>
-        acc.id === id ? { ...acc, [field]: value } : acc
-      )
-    );
+  const handleDateInputChange = (input: string) => {
+    setFormDateInput(input);
+    const parsed = parseFlexibleDate(input);
+    if (parsed) {
+      setFormDate(format(parsed, "yyyy-MM-dd"));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -474,6 +416,12 @@ export default function NetWorthCalculator() {
 
     if (isNaN(netWorth) || isNaN(cash)) return;
 
+    // Validate date
+    if (!parseFlexibleDate(formDateInput)) {
+      alert("Please enter a valid date");
+      return;
+    }
+
     const existingIndex = entries.findIndex((entry) => entry.date === formDate);
 
     const newEntry: Entry = {
@@ -481,9 +429,6 @@ export default function NetWorthCalculator() {
       date: formDate,
       totalNetWorth: netWorth,
       cash: cash,
-      retirementAccounts: formRetirementAccounts.filter(
-        (acc) => acc.name && acc.balance > 0
-      ),
     };
 
     if (existingIndex >= 0) {
@@ -496,7 +441,7 @@ export default function NetWorthCalculator() {
 
     setFormNetWorth("");
     setFormCash("");
-    setFormRetirementAccounts([]);
+    setFormDateInput(format(new Date(), "MM/dd/yyyy"));
   };
 
   const deleteEntry = (id: string) => {
@@ -511,10 +456,9 @@ export default function NetWorthCalculator() {
 
   const loadEntryToForm = useCallback((entry: Entry) => {
     setFormDate(entry.date);
+    setFormDateInput(format(new Date(entry.date), "MM/dd/yyyy"));
     setFormNetWorth(entry.totalNetWorth.toString());
     setFormCash(entry.cash.toString());
-    setFormRetirementAccounts(entry.retirementAccounts);
-    setShowRetirementSection(entry.retirementAccounts.length > 0);
   }, []);
 
   if (!isLoaded || !isProfileLoaded) {
@@ -527,13 +471,13 @@ export default function NetWorthCalculator() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-terminal-border pb-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Net Worth Tracker</h1>
-            <p className="text-muted-foreground mt-1">
-              Track your wealth journey with precision
+            <h1 className="text-2xl font-bold tracking-wider text-primary">NET WORTH TERMINAL</h1>
+            <p className="text-muted-foreground mt-1 text-xs font-mono uppercase tracking-wide">
+              Real-time wealth tracking system
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -611,10 +555,6 @@ export default function NetWorthCalculator() {
             currentNetWorth={latestEntry.totalNetWorth}
             cash={latestEntry.cash}
             profile={profile}
-            retirementAccounts={latestEntry.retirementAccounts.reduce(
-              (sum, acc) => sum + acc.balance,
-              0
-            )}
             onClose={() => setShowRoast(false)}
           />
         )}
@@ -634,116 +574,92 @@ export default function NetWorthCalculator() {
 
         {/* Summary Cards */}
         {latestEntry && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Card className="terminal-card terminal-border">
+              <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Net Worth</p>
-                    <p className="text-2xl font-semibold mt-1">
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Total Net Worth</p>
+                    <p className="text-2xl font-mono font-bold mt-2 text-primary">
                       {formatCurrency(latestEntry.totalNetWorth)}
                     </p>
                   </div>
                   <div
-                    className={`flex items-center gap-1 text-sm ${
-                      annualizedNetWorthGrowth >= 0 ? "text-emerald-600" : "text-red-600"
+                    className={`flex items-center gap-1 text-xs font-mono ${
+                      annualizedNetWorthGrowth >= 0 ? "text-primary" : "text-destructive"
                     }`}
                   >
                     {annualizedNetWorthGrowth >= 0 ? (
-                      <TrendingUp className="h-4 w-4" />
+                      <TrendingUp className="h-3 w-3" />
                     ) : (
-                      <TrendingDown className="h-4 w-4" />
+                      <TrendingDown className="h-3 w-3" />
                     )}
-                    {formatPercent(annualizedNetWorthGrowth)}/yr
+                    <span>{formatPercent(annualizedNetWorthGrowth)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Growth angle: {netWorthAngle.toFixed(1)}°
+                <p className="text-xs text-muted-foreground mt-2 font-mono">
+                  ANGLE: {netWorthAngle.toFixed(1)}°
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="pt-6">
+            <Card className="terminal-card terminal-border">
+              <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cash</p>
-                    <p className="text-2xl font-semibold mt-1">
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Cash Liquid</p>
+                    <p className="text-2xl font-mono font-bold mt-2 text-primary">
                       {formatCurrency(latestEntry.cash)}
                     </p>
                   </div>
                   <div
-                    className={`flex items-center gap-1 text-sm ${
-                      annualizedCashGrowth >= 0 ? "text-emerald-600" : "text-red-600"
+                    className={`flex items-center gap-1 text-xs font-mono ${
+                      annualizedCashGrowth >= 0 ? "text-primary" : "text-destructive"
                     }`}
                   >
                     {annualizedCashGrowth >= 0 ? (
-                      <TrendingUp className="h-4 w-4" />
+                      <TrendingUp className="h-3 w-3" />
                     ) : (
-                      <TrendingDown className="h-4 w-4" />
+                      <TrendingDown className="h-3 w-3" />
                     )}
-                    {formatPercent(annualizedCashGrowth)}/yr
+                    <span>{formatPercent(annualizedCashGrowth)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Growth angle: {cashAngle.toFixed(1)}°
+                <p className="text-xs text-muted-foreground mt-2 font-mono">
+                  ANGLE: {cashAngle.toFixed(1)}°
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="pt-6">
+            <Card className="terminal-card terminal-border">
+              <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Retirement Accounts</p>
-                    <p className="text-2xl font-semibold mt-1">
-                      {formatCurrency(
-                        latestEntry.retirementAccounts.reduce(
-                          (sum, acc) => sum + acc.balance,
-                          0
-                        )
-                      )}
-                    </p>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono">Data Points</p>
+                    <p className="text-2xl font-mono font-bold mt-2 text-primary">{entries.length}</p>
                   </div>
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <Calculator className="h-4 w-4 text-primary" />
                 </div>
-                {retirementLiquidationValue && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    After penalty: {formatCurrency(retirementLiquidationValue.liquidationValue)}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Entries</p>
-                    <p className="text-2xl font-semibold mt-1">{entries.length}</p>
-                  </div>
-                  <Calculator className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground mt-2 font-mono">
                   {sortedEntries.length >= 2
                     ? `${differenceInDays(
                         new Date(sortedEntries[sortedEntries.length - 1].date),
                         new Date(sortedEntries[0].date)
-                      )} days tracked`
-                    : "Start tracking today"}
+                      )} DAYS`
+                    : "INIT SESSION"}
                 </p>
               </CardContent>
             </Card>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Entry Form */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Plus className="h-5 w-5" />
-                Add Entry
+          <Card className="lg:col-span-1 terminal-card terminal-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-mono uppercase tracking-wider text-primary">
+                <Plus className="h-4 w-4" />
+                Data Entry
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -752,123 +668,56 @@ export default function NetWorthCalculator() {
                   <Label htmlFor="date">Date</Label>
                   <Input
                     id="date"
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
+                    type="text"
+                    placeholder="1/15/2024 or Jan 15, 2024"
+                    value={formDateInput}
+                    onChange={(e) => handleDateInputChange(e.target.value)}
                     required
                   />
+                  {formDateInput && parseFlexibleDate(formDateInput) && (
+                    <p className="text-xs text-muted-foreground">
+                      Parsed as: {format(parseFlexibleDate(formDateInput)!, "MMMM d, yyyy")}
+                    </p>
+                  )}
+                  {formDateInput && !parseFlexibleDate(formDateInput) && (
+                    <p className="text-xs text-destructive">
+                      Invalid date format. {getDateInputHint()}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="netWorth">Total Net Worth</Label>
-                  <Input
-                    id="netWorth"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formNetWorth}
-                    onChange={(e) => setFormNetWorth(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="netWorth"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formNetWorth}
+                      onChange={(e) => setFormNetWorth(e.target.value)}
+                      className="pl-7"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="cash">Cash (Liquid)</Label>
-                  <Input
-                    id="cash"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formCash}
-                    onChange={(e) => setFormCash(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {/* Retirement Accounts Section */}
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowRetirementSection(!showRetirementSection)}
-                    className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showRetirementSection ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                    Retirement Accounts
-                  </button>
-
-                  {showRetirementSection && (
-                    <div className="space-y-3 pl-2 border-l-2 border-border">
-                      {formRetirementAccounts.map((acc) => (
-                        <div key={acc.id} className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              placeholder="Account name"
-                              value={acc.name}
-                              onChange={(e) =>
-                                updateRetirementAccountField(acc.id, "name", e.target.value)
-                              }
-                              className="flex-1"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeRetirementAccountField(acc.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                          <div className="flex gap-2">
-                            <select
-                              value={acc.type}
-                              onChange={(e) =>
-                                updateRetirementAccountField(
-                                  acc.id,
-                                  "type",
-                                  e.target.value as RetirementAccount["type"]
-                                )
-                              }
-                              className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            >
-                              <option value="401k">401(k)</option>
-                              <option value="ira">Traditional IRA</option>
-                              <option value="roth_ira">Roth IRA</option>
-                              <option value="403b">403(b)</option>
-                              <option value="other">Other</option>
-                            </select>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="Balance"
-                              value={acc.balance || ""}
-                              onChange={(e) =>
-                                updateRetirementAccountField(
-                                  acc.id,
-                                  "balance",
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addRetirementAccountField}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Account
-                      </Button>
-                    </div>
-                  )}
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      id="cash"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formCash}
+                      onChange={(e) => setFormCash(e.target.value)}
+                      className="pl-7"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full">
@@ -1055,8 +904,137 @@ export default function NetWorthCalculator() {
           historicalGrowthRate={annualizedNetWorthGrowth}
         />
 
-        {/* Analysis Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Deviation Alert - Shows if significantly ahead or behind trajectory */}
+        {entries.length >= 3 && (
+          <DeviationAlert entries={entries} />
+        )}
+
+        {/* Smart Suggestions - AI-powered recommendations */}
+        {entries.length >= 2 && profile && latestEntry && (
+          <SmartSuggestions
+            currentNetWorth={latestEntry.totalNetWorth}
+            cash={latestEntry.cash}
+            age={profile.age}
+            annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+            savingsRate={profile.savingsRate}
+            entries={entries}
+            averageAnnualGrowth={annualizedNetWorthGrowth}
+            recentVelocity={
+              entries.length >= 3
+                ? (() => {
+                    const recent = sortedEntries.slice(-3);
+                    if (recent.length < 2) return undefined;
+                    const days = differenceInDays(
+                      new Date(recent[recent.length - 1].date),
+                      new Date(recent[0].date)
+                    );
+                    return days > 0
+                      ? (recent[recent.length - 1].totalNetWorth - recent[0].totalNetWorth) / days
+                      : undefined;
+                  })()
+                : undefined
+            }
+            overallVelocity={
+              sortedEntries.length >= 2
+                ? (() => {
+                    const days = differenceInDays(
+                      new Date(sortedEntries[sortedEntries.length - 1].date),
+                      new Date(sortedEntries[0].date)
+                    );
+                    return days > 0
+                      ? (sortedEntries[sortedEntries.length - 1].totalNetWorth -
+                          sortedEntries[0].totalNetWorth) /
+                          days
+                      : undefined;
+                  })()
+                : undefined
+            }
+          />
+        )}
+
+        {/* Advanced Analysis Tools */}
+        {entries.length >= 2 && profile && latestEntry && (
+          <Tabs defaultValue="fire" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 gap-1">
+              <TabsTrigger value="fire" className="gap-2 text-xs lg:text-sm">
+                <Flame className="h-4 w-4" />
+                <span className="hidden sm:inline">FIRE</span>
+              </TabsTrigger>
+              <TabsTrigger value="scenarios" className="gap-2 text-xs lg:text-sm">
+                <TrendingUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Scenarios</span>
+              </TabsTrigger>
+              <TabsTrigger value="velocity" className="gap-2 text-xs lg:text-sm">
+                <TrendingUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Velocity</span>
+              </TabsTrigger>
+              <TabsTrigger value="3d" className="gap-2 text-xs lg:text-sm">
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">3D</span>
+              </TabsTrigger>
+              <TabsTrigger value="legacy" className="gap-2 text-xs lg:text-sm">
+                <Calculator className="h-4 w-4" />
+                <span className="hidden sm:inline">Tools</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="fire" className="space-y-4 mt-4">
+              <FIRECalculator
+                currentNetWorth={latestEntry.totalNetWorth}
+                currentAge={profile.age}
+                annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+              />
+            </TabsContent>
+
+            <TabsContent value="scenarios" className="space-y-4 mt-4">
+              <MultiScenarioAnalysis
+                currentNetWorth={latestEntry.totalNetWorth}
+                annualSavings={
+                  getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp *
+                  (profile.savingsRate / 100)
+                }
+                years={10}
+                historicalData={entries}
+                fireTarget={2000000}
+              />
+            </TabsContent>
+
+            <TabsContent value="velocity" className="space-y-4 mt-4">
+              <VelocityChart entries={entries} />
+            </TabsContent>
+
+            <TabsContent value="3d" className="space-y-4 mt-4">
+              <WealthGlidepath3D
+                historicalData={entries.map((e) => ({
+                  age: profile.age - Math.floor(
+                    (new Date().getTime() - new Date(e.date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+                  ),
+                  netWorth: e.totalNetWorth,
+                }))}
+                monteCarloData={
+                  monteCarloNetWorth && monteCarloNetWorth.percentile5.length > 0
+                    ? {
+                        percentile5: monteCarloNetWorth.percentile5,
+                        percentile25: monteCarloNetWorth.percentile25,
+                        percentile50: monteCarloNetWorth.percentile50,
+                        percentile75: monteCarloNetWorth.percentile75,
+                        percentile95: monteCarloNetWorth.percentile95,
+                        ages: monteCarloNetWorth.dates.map((_, i) => profile.age + i / 365),
+                      }
+                    : undefined
+                }
+                fireThresholds={[
+                  { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
+                  { name: "Regular FIRE", amount: 1500000, color: "#10b981" },
+                  { name: "Chubby FIRE", amount: 2500000, color: "#6366f1" },
+                  { name: "Fat FIRE", amount: 4000000, color: "#f59e0b" },
+                ]}
+              />
+            </TabsContent>
+
+            <TabsContent value="legacy" className="space-y-4 mt-4">
+              {/* Legacy Analysis Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Time to Target */}
           <Card>
             <CardHeader>
@@ -1085,14 +1063,18 @@ export default function NetWorthCalculator() {
 
               <div className="space-y-2">
                 <Label htmlFor="target">Target Amount</Label>
-                <Input
-                  id="target"
-                  type="number"
-                  step="1000"
-                  placeholder="1000000"
-                  value={targetAmount}
-                  onChange={(e) => setTargetAmount(e.target.value)}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    id="target"
+                    type="number"
+                    step="1000"
+                    placeholder="1000000"
+                    value={targetAmount}
+                    onChange={(e) => setTargetAmount(e.target.value)}
+                    className="pl-7"
+                  />
+                </div>
               </div>
 
               {timeToTarget !== null ? (
@@ -1187,89 +1169,10 @@ export default function NetWorthCalculator() {
               </p>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Retirement Account Liquidation */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wallet className="h-5 w-5" />
-              Retirement Liquidation Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {retirementLiquidationValue && retirementLiquidationValue.totalRetirement > 0 ? (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">Total Balance</p>
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(retirementLiquidationValue.totalRetirement)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-emerald-500/10 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">After Penalty & Tax</p>
-                    <p className="text-lg font-semibold text-emerald-600">
-                      {formatCurrency(retirementLiquidationValue.liquidationValue)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-red-500/10 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">10% Penalty</p>
-                    <p className="text-lg font-semibold text-red-600">
-                      -{formatCurrency(retirementLiquidationValue.penaltyAmount)}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-red-500/10 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">Est. Tax (22%)</p>
-                    <p className="text-lg font-semibold text-red-600">
-                      -{formatCurrency(retirementLiquidationValue.taxAmount)}
-                    </p>
-                  </div>
-                </div>
-
-                {retirementLiquidationValue.breakdown.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Account Breakdown</p>
-                      {retirementLiquidationValue.breakdown.map((acc) => (
-                        <div
-                          key={acc.id}
-                          className="flex justify-between items-center text-sm py-1"
-                        >
-                          <div>
-                            <span>{acc.name}</span>
-                            <span className="text-xs text-muted-foreground ml-2">
-                              ({acc.type.replace("_", " ").toUpperCase()})
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-muted-foreground">
-                              {formatCurrency(acc.balance)}
-                            </span>
-                            <span className="mx-2">→</span>
-                            <span className="text-emerald-600">
-                              {formatCurrency(acc.liquidationValue)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                Add retirement accounts to see liquidation values
               </div>
-            )}
-
-            <p className="text-xs text-muted-foreground">
-              Note: Roth IRA contributions can be withdrawn penalty-free. This is a simplified
-              estimate assuming all Roth funds are contributions.
-            </p>
-          </CardContent>
-        </Card>
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Entry History */}
         <Card>
@@ -1285,7 +1188,6 @@ export default function NetWorthCalculator() {
                       <th className="text-left py-3 px-2 font-medium">Date</th>
                       <th className="text-right py-3 px-2 font-medium">Net Worth</th>
                       <th className="text-right py-3 px-2 font-medium">Cash</th>
-                      <th className="text-right py-3 px-2 font-medium">Retirement</th>
                       <th className="text-right py-3 px-2 font-medium">Actions</th>
                     </tr>
                   </thead>
@@ -1299,11 +1201,6 @@ export default function NetWorthCalculator() {
                           {formatCurrency(entry.totalNetWorth)}
                         </td>
                         <td className="text-right py-3 px-2">{formatCurrency(entry.cash)}</td>
-                        <td className="text-right py-3 px-2">
-                          {formatCurrency(
-                            entry.retirementAccounts.reduce((sum, acc) => sum + acc.balance, 0)
-                          )}
-                        </td>
                         <td className="text-right py-3 px-2">
                           <div className="flex justify-end gap-1">
                             <Button
@@ -1340,7 +1237,10 @@ export default function NetWorthCalculator() {
         <div className="text-center text-xs text-muted-foreground pt-4 border-t space-y-1">
           <p>All data stored locally in your browser. No data leaves your device.</p>
           <p>
-            Benchmark data: Federal Reserve SCF 2022 + BLS OES 2023
+            Benchmark data: Federal Reserve SCF 2022 + BLS OES 2023 |
+            <a href="/methodology" className="text-primary hover:underline ml-1">
+              View Methodology
+            </a>
           </p>
           <button
             onClick={() => {
