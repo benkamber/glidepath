@@ -56,7 +56,7 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
       occupation: profile.occupation,
       level: profile.level,
       metro: profile.metro,
-      savingsRate: profile.savingsRate,
+      savingsRate: (profile.savingsRate || 0.25),
       currentNetWorth: currentNetWorth ?? undefined,
     });
   }, [profile, currentNetWorth]);
@@ -141,7 +141,7 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p>
-                    Expected net worth for a {profile.level} {profile.occupation.replace('_', ' ')} in {profile.metro.replace('_', ' ')} saving {Math.round(profile.savingsRate * 100)}% since age {profile.age - profile.yearsInWorkforce}
+                    Expected net worth for a {profile.level} {profile.occupation.replace('_', ' ')} in {profile.metro.replace('_', ' ')} saving {Math.round((profile.savingsRate || 0.25) * 100)}% since age {profile.age - profile.yearsInWorkforce}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -150,7 +150,7 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
               {formatCompact(wealthModel?.expectedNetWorth ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground">
-              at {Math.round(profile.savingsRate * 100)}% savings rate
+              at {Math.round((profile.savingsRate || 0.25) * 100)}% savings rate
             </p>
           </div>
 

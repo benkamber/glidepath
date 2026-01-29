@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { X, Flame, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Flame, TrendingUp, TrendingDown, AlertTriangle, Lightbulb, ChevronDown, ChevronUp, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -119,7 +119,7 @@ export function RoastMode({
       occupation: profile.occupation,
       level: profile.level,
       metro: profile.metro,
-      savingsRate: profile.savingsRate,
+      savingsRate: (profile.savingsRate || 0.25),
       currentNetWorth,
     });
 
@@ -136,7 +136,7 @@ export function RoastMode({
 
     // Calculate some key metrics
     const cashPercent = currentNetWorth > 0 ? cash / currentNetWorth : 0;
-    const annualSavings = wageEstimate.afterTaxComp * profile.savingsRate;
+    const annualSavings = wageEstimate.afterTaxComp * ((profile.savingsRate || 0.25) || 0.25);
     const yearsToDouble = annualSavings > 0 ?
       Math.log(2) / Math.log(1 + 0.07 + (annualSavings / Math.max(currentNetWorth, 1))) :
       Infinity;
@@ -186,15 +186,15 @@ export function RoastMode({
     }
 
     // Savings rate roasts
-    if (profile.savingsRate < 0.15 && ['software_engineer', 'product_manager', 'data_scientist', 'finance', 'consulting'].includes(profile.occupation)) {
+    if ((profile.savingsRate || 0.25) < 0.15 && ['software_engineer', 'product_manager', 'data_scientist', 'finance', 'consulting'].includes(profile.occupation)) {
       roasts.push({
         type: 'roast',
-        message: `${Math.round(profile.savingsRate * 100)}% savings rate in ${occupationLabels[profile.occupation as keyof typeof occupationLabels]}? You should be able to do better than that.`,
+        message: `${Math.round((profile.savingsRate || 0.25) * 100)}% savings rate in ${occupationLabels[profile.occupation as keyof typeof occupationLabels]}? You should be able to do better than that.`,
       });
-    } else if (profile.savingsRate >= 0.40) {
+    } else if ((profile.savingsRate || 0.25) >= 0.40) {
       roasts.push({
         type: 'praise',
-        message: `${Math.round(profile.savingsRate * 100)}% savings rate is aggressive. FIRE community would approve.`,
+        message: `${Math.round((profile.savingsRate || 0.25) * 100)}% savings rate is aggressive. FIRE community would approve.`,
       });
     }
 
@@ -255,7 +255,7 @@ export function RoastMode({
       });
     }
 
-    if (profile.savingsRate < 0.20) {
+    if ((profile.savingsRate || 0.25) < 0.20) {
       actions.push({
         priority: 'medium',
         action: `Increase savings rate by 5% - would add ${formatCompact(wageEstimate.afterTaxComp * 0.05)}/year`,
@@ -381,7 +381,7 @@ export function RoastMode({
             className="w-full flex items-center justify-between text-sm font-semibold hover:text-primary transition-colors"
           >
             <span className="flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
+              <DollarSign className="h-4 w-4" />
               How We Predicted {formatCompact(analysis.expectedNW)}
             </span>
             {showModelBreakdown ? (
@@ -427,15 +427,15 @@ export function RoastMode({
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Estimated salary ({metroLabels[profile.metro]}):</span>
-                    <span>{formatCurrency(analysis.wageEstimate)}/yr</span>
+                    <span>{formatCurrency(analysis.wageEstimate.totalComp)}/yr</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Assumed savings rate:</span>
-                    <span>{(profile.savingsRate * 100).toFixed(0)}%</span>
+                    <span>{((profile.savingsRate || 0.25) * 100).toFixed(0)}%</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Annual savings:</span>
-                    <span>{formatCurrency(analysis.wageEstimate * profile.savingsRate)}/yr</span>
+                    <span>{formatCurrency(analysis.wageEstimate.afterTaxComp * (profile.savingsRate || 0.25))}/yr</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Investment returns:</span>
@@ -486,7 +486,7 @@ export function RoastMode({
                   <p>✓ Occupation: {occupationLabels[profile.occupation]}</p>
                   <p>✓ Level: {profile.level}</p>
                   <p>✓ Metro: {metroLabels[profile.metro]}</p>
-                  <p>✓ BLS salary estimate: {formatCurrency(analysis.wageEstimate)}</p>
+                  <p>✓ BLS salary estimate: {formatCurrency(analysis.wageEstimate.totalComp)}</p>
                   <p>✓ Investment return: 7% real (S&P 500 historical)</p>
                   <p>✓ Starting age: {profile.age - profile.yearsInWorkforce} (career start)</p>
                   <p>✓ Starting wealth: $0</p>

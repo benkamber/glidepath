@@ -82,7 +82,7 @@ export function useUserProfile() {
     profile.yearsInWorkforce >= 0 &&
     profile.occupation &&
     profile.metro &&
-    profile.savingsRate > 0;
+    (profile.savingsRate || 0.25) > 0;
 
   return {
     profile,

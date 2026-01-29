@@ -1167,7 +1167,7 @@ export default function NetWorthCalculator() {
               cash: e.cash,
               investment: e.investment || (e.totalNetWorth - e.cash),
             }))}
-            monteCarloData={monteCarloNetWorth}
+            monteCarloData={monteCarloNetWorth || undefined}
             profileProjection={
               profile
                 ? {

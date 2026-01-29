@@ -178,7 +178,7 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     startAge = 22,
     occupation,
     metro,
-    savingsRate,
+    savingsRate = 0.25,
     annualReturn = 0.07,
     currentNetWorth,
   } = input;
@@ -268,7 +268,7 @@ export function projectFutureWealth(
     startAge = 22,
     occupation,
     metro,
-    savingsRate,
+    savingsRate = 0.25,
     annualReturn = 0.07,
     currentNetWorth,
   } = input;
@@ -550,7 +550,7 @@ export function calculateFIRENumbers(
   const coastFIREAmount = regularFIREAmount / Math.pow(1.07, yearsToTarget);
 
   const wageEstimate = getWageEstimate(input.occupation, input.level ?? getLevelForYears(input.currentAge - (input.startAge ?? 22)), input.metro);
-  const annualSavings = Math.round(wageEstimate.afterTaxComp * input.savingsRate);
+  const annualSavings = Math.round(wageEstimate.afterTaxComp * (input.savingsRate || 0.25));
 
   const getYearsToTarget = (target: number): number | null => {
     if (currentNetWorth >= target) return 0;
