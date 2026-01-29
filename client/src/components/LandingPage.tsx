@@ -51,7 +51,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       <div className="max-w-4xl mx-auto px-4 pt-16 pb-12 text-center">
         <div className="space-y-6">
           <p className="text-sm font-medium text-primary tracking-wider uppercase">
-            Net Worth Percentile Calculator
+            Glidepath
           </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
             Stop asking Blind.
