@@ -214,7 +214,7 @@ export function ProfileSection({
           {/* Total Compensation */}
           <div className="space-y-2">
             <Label htmlFor="totalComp" className="flex items-center gap-2">
-              💰 Annual Total Compensation (Optional)
+              💰 Annual Total Compensation (Optional - Leave Blank if Unemployed/Laid Off)
             </Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
@@ -233,21 +233,21 @@ export function ProfileSection({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Include ALL comp: base + bonus + equity + benefits. Used for geographic arbitrage calculations.
+              <strong>Only needed if currently employed.</strong> Include ALL comp: base + bonus + equity + benefits. Used for geographic arbitrage & future projections. Leave blank if laid off/between jobs - we'll infer savings from your historical net worth growth instead.
             </p>
           </div>
 
           {/* Savings Rate - REMOVED: Now inferred from historical data */}
           {/* This provides more accurate modeling based on actual behavior */}
 
-          {/* Target Asset Allocation */}
+          {/* ACTUAL Asset Allocation (Required for Monte Carlo) */}
           <div className="space-y-4 pt-4 border-t">
             <Label className="flex items-center gap-2 text-base font-semibold">
               <PieChart className="h-4 w-4" />
-              Target Asset Allocation
+              💎 Your Actual Asset Allocation
             </Label>
             <p className="text-sm text-muted-foreground">
-              How you typically allocate your wealth. Used for Monte Carlo projections.
+              <strong>How your net worth is CURRENTLY split.</strong> This is critical for wealth projections and Monte Carlo simulations to understand your market exposure vs. cash position.
             </p>
 
             {/* Cash Percentage */}
