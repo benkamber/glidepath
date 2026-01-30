@@ -221,6 +221,9 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
         {/* Input Area */}
         <div className="space-y-2">
           <label className="text-sm font-medium">📋 Paste your data (3+ columns: Date, Net Worth, Cash):</label>
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            <strong>Two-step process:</strong> First parse to preview, then import to add to your tracker
+          </p>
           <Textarea
             value={rawData}
             onChange={(e) => setRawData(e.target.value)}
@@ -252,9 +255,10 @@ Just paste and click Parse!`}
           disabled={!rawData.trim()}
           className="w-full"
           size="lg"
+          variant="secondary"
         >
           <CheckCircle className="mr-2 h-4 w-4" />
-          Parse Data (Local - Free)
+          Step 1: Parse & Preview Data
         </Button>
 
         {/* Error Display */}
@@ -317,9 +321,13 @@ Just paste and click Parse!`}
             )}
 
             {/* Import Button */}
-            <Button onClick={handleImport} className="w-full" size="lg">
+            <Button
+              onClick={handleImport}
+              className="w-full bg-green-600 hover:bg-green-700"
+              size="lg"
+            >
               <CheckCircle className="mr-2 h-4 w-4" />
-              Import {parsedEntries.length} Entries
+              ✓ Step 2: Add {parsedEntries.length} Entries to Tracker
             </Button>
           </div>
         )}
