@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -39,6 +39,13 @@ export function FIRECalculator({
   // Basic inputs - use profile expenses if available, otherwise default to 4000
   const [monthlySpend, setMonthlySpend] = useState(monthlyExpenses || 4000);
   const [isCouple, setIsCouple] = useState(false);
+
+  // Sync monthlySpend with prop changes (when user updates profile)
+  useEffect(() => {
+    if (monthlyExpenses !== undefined) {
+      setMonthlySpend(monthlyExpenses);
+    }
+  }, [monthlyExpenses]);
 
   // Advanced settings
   const [coupleMultiplier, setCoupleMultiplier] = useState(1.7);

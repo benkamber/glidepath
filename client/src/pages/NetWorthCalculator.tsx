@@ -289,6 +289,9 @@ export default function NetWorthCalculator() {
   const [targetAmount, setTargetAmount] = useState("");
   const [targetField, setTargetField] = useState<"totalNetWorth" | "cash">("totalNetWorth");
 
+  // Manual projection years (used when no retirement age set)
+  const [manualProjectionYears, setManualProjectionYears] = useState(10);
+
   // Projection horizon: use retirement age if set, otherwise manual selection
   const projectionHorizonYears = useMemo(() => {
     if (profile?.targetRetirementAge && profile.age < profile.targetRetirementAge) {
@@ -296,8 +299,6 @@ export default function NetWorthCalculator() {
     }
     return manualProjectionYears;
   }, [profile?.targetRetirementAge, profile?.age, manualProjectionYears]);
-
-  const [manualProjectionYears, setManualProjectionYears] = useState(10);
 
   // SWR settings
   const [swrUseCashOnly, setSwrUseCashOnly] = useState(false);
