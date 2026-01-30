@@ -1166,6 +1166,7 @@ export default function NetWorthCalculator() {
                 currentNetWorth={latestEntry.totalNetWorth}
                 currentAge={profile.age}
                 annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+                monthlyExpenses={profile.monthlyExpenses}
               />
             </TabsContent>
 

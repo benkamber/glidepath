@@ -237,6 +237,28 @@ export function ProfileSection({
             </p>
           </div>
 
+          {/* Monthly Expenses for FIRE Planning */}
+          <div className="space-y-2">
+            <Label htmlFor="monthlyExpenses" className="flex items-center gap-2">
+              💳 Monthly Expenses (Optional - for FIRE Planning)
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="monthlyExpenses"
+                type="number"
+                step="100"
+                placeholder="e.g., 5000"
+                value={profile?.monthlyExpenses ?? ''}
+                onChange={(e) => onProfileChange({ monthlyExpenses: e.target.value ? parseFloat(e.target.value) : undefined })}
+                className="pl-7"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              <strong>Used for FIRE calculations & retirement planning.</strong> Include all regular expenses: housing, food, transportation, insurance, entertainment. Excludes savings/investments. Helps calculate safe withdrawal rate and years to financial independence.
+            </p>
+          </div>
+
           {/* Savings Rate - REMOVED: Now inferred from historical data */}
           {/* This provides more accurate modeling based on actual behavior */}
 

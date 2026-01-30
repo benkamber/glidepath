@@ -27,15 +27,17 @@ interface FIRECalculatorProps {
   currentNetWorth: number;
   currentAge: number;
   annualIncome: number;
+  monthlyExpenses?: number; // From user profile
 }
 
 export function FIRECalculator({
   currentNetWorth,
   currentAge,
   annualIncome,
+  monthlyExpenses,
 }: FIRECalculatorProps) {
-  // Basic inputs
-  const [monthlySpend, setMonthlySpend] = useState(4000);
+  // Basic inputs - use profile expenses if available, otherwise default to 4000
+  const [monthlySpend, setMonthlySpend] = useState(monthlyExpenses || 4000);
   const [isCouple, setIsCouple] = useState(false);
 
   // Advanced settings

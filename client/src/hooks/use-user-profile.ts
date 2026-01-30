@@ -23,6 +23,8 @@ export interface UserProfile {
   targetAllocation?: TargetAllocation;
   // Total annual compensation (optional override, defaults to BLS data)
   totalCompensation?: number;
+  // Monthly expenses for FIRE planning and sustainability analysis
+  monthlyExpenses?: number;
 }
 
 const PROFILE_STORAGE_KEY = 'user-profile';
