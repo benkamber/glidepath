@@ -61,6 +61,7 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
 import { inferSavingsRate, projectFutureWealth, projectionScenarios } from "@/models/wealth-model";
 import { wealthByAge, getBracketForAge } from "@/data/scf-data";
+import { calculateAssetSplit } from "@/lib/asset-allocation";
 
 // New analysis components
 import { VelocityChart } from "@/components/VelocityChart";
@@ -75,7 +76,8 @@ import { DataSources } from "@/components/DataSources";
 import { SimpleDataImport } from "@/components/SimpleDataImport";
 import { MonteCarloRunner } from "@/components/monte-carlo/MonteCarloRunner";
 import { MonteCarloResults } from "@/components/monte-carlo/MonteCarloResults";
-import type { AggregatedResults } from "@/lib/monte-carlo";
+import type { AggregatedResults, MonteCarloChartData } from "@/lib/monte-carlo";
+import { transformForChart } from "@/lib/monte-carlo";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
@@ -478,11 +480,22 @@ export default function NetWorthCalculator() {
     return Math.atan(normalizedSlope) * (180 / Math.PI);
   }, [sortedEntries, latestEntry]);
 
-  // Monte Carlo projections
+  // Monte Carlo projections (old simple historical-based)
   const monteCarloNetWorth = useMemo(
     () => runMonteCarloSimulation(sortedEntries, "totalNetWorth", 365 * 3),
     [sortedEntries]
   );
+
+  // Transform new Monte Carlo results for chart (income/expenses aware)
+  const monteCarloChartData = useMemo<MonteCarloChartData | null>(() => {
+    if (!monteCarloResults || !latestEntry) return null;
+    try {
+      return transformForChart(monteCarloResults, new Date(latestEntry.date));
+    } catch (error) {
+      console.error("Error transforming Monte Carlo data:", error);
+      return null;
+    }
+  }, [monteCarloResults, latestEntry]);
 
   // Time to target calculation
   const timeToTarget = useMemo(() => {
@@ -845,15 +858,21 @@ export default function NetWorthCalculator() {
         )}
 
         {/* Roast Mode */}
-        {showRoast && latestEntry && profile && (
-          <RoastMode
-            currentNetWorth={latestEntry.totalNetWorth}
-            cash={latestEntry.cash}
-            investment={latestEntry.investment}
-            profile={profile}
-            onClose={() => setShowRoast(false)}
-          />
-        )}
+        {showRoast && latestEntry && profile && (() => {
+          const assetSplit = calculateAssetSplit(
+            latestEntry.totalNetWorth,
+            profile.targetAllocation
+          );
+          return (
+            <RoastMode
+              currentNetWorth={latestEntry.totalNetWorth}
+              cash={assetSplit.cashAssets}
+              investment={assetSplit.investmentAssets}
+              profile={profile}
+              onClose={() => setShowRoast(false)}
+            />
+          );
+        })()}
 
         {/* COL Comparison - Simplified with International Cities */}
         {showCOL && latestEntry && profile && (
@@ -1081,7 +1100,7 @@ export default function NetWorthCalculator() {
               cash: e.cash,
               investment: e.investment || (e.totalNetWorth - e.cash),
             }))}
-            monteCarloData={monteCarloNetWorth || undefined}
+            monteCarloData={monteCarloChartData || monteCarloNetWorth || undefined}
             profileProjection={wealthProjection}
             fireThresholds={[
               { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
@@ -1182,12 +1201,21 @@ export default function NetWorthCalculator() {
             </TabsContent>
 
             <TabsContent value="runway" className="space-y-4 mt-4">
-              <RunwayAnalysis
-                currentNetWorth={latestEntry.totalNetWorth}
-                cashBalance={latestEntry.cash}
-                investmentBalance={latestEntry.totalNetWorth - latestEntry.cash}
-                historicalEntries={entries}
-              />
+              {(() => {
+                // Calculate asset split using allocation percentages (NOT manual entry)
+                const assetSplit = calculateAssetSplit(
+                  latestEntry.totalNetWorth,
+                  profile.targetAllocation
+                );
+                return (
+                  <RunwayAnalysis
+                    currentNetWorth={latestEntry.totalNetWorth}
+                    cashBalance={assetSplit.cashAssets}
+                    investmentBalance={assetSplit.investmentAssets}
+                    historicalEntries={entries}
+                  />
+                );
+              })()}
             </TabsContent>
 
             {/* REMOVED: Scenarios tab - use UnifiedChartSystem "Projection" lens instead */}
@@ -1351,22 +1379,28 @@ export default function NetWorthCalculator() {
         />
 
         {/* Monte Carlo Simulation */}
-        {entries.length >= 2 && profile && latestEntry && (
-          <div className="space-y-6">
-            <MonteCarloRunner
-              currentNetWorth={latestEntry.totalNetWorth}
-              currentCash={latestEntry.cash}
-              monthlyIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp}
-              monthlyExpenses={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp * (1 - inferredSavingsRate)}
-              savingsRate={inferredSavingsRate}
-              onResults={(results) => setMonteCarloResults(results)}
-            />
+        {entries.length >= 2 && profile && latestEntry && (() => {
+          const assetSplit = calculateAssetSplit(
+            latestEntry.totalNetWorth,
+            profile.targetAllocation
+          );
+          return (
+            <div className="space-y-6">
+              <MonteCarloRunner
+                currentNetWorth={latestEntry.totalNetWorth}
+                currentCash={assetSplit.cashAssets}
+                monthlyIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp}
+                monthlyExpenses={getWageEstimate(profile.occupation, profile.level, profile.metro).afterTaxComp * (1 - inferredSavingsRate)}
+                savingsRate={inferredSavingsRate}
+                onResults={(results) => setMonteCarloResults(results)}
+              />
 
-            {monteCarloResults && (
-              <MonteCarloResults results={monteCarloResults} />
-            )}
-          </div>
-        )}
+              {monteCarloResults && (
+                <MonteCarloResults results={monteCarloResults} />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Data Sources & Methodology */}
         <DataSources />

@@ -400,6 +400,76 @@ export function runMonteCarloSimulation(config: SimulationConfig): AggregatedRes
 }
 
 /**
+ * Transform AggregatedResults into format suitable for time-series charting
+ * Extracts percentile values at each time point for visualization
+ */
+export interface MonteCarloChartData {
+  dates: string[];
+  percentile5: number[];
+  percentile25: number[];
+  percentile50: number[];
+  percentile75: number[];
+  percentile95: number[];
+}
+
+export function transformForChart(
+  results: AggregatedResults,
+  startDate: Date
+): MonteCarloChartData {
+  const allResults = results.allResults;
+
+  // Determine time horizon from first result
+  const timeHorizon = allResults[0]?.monthlyNetWorth.length || 0;
+
+  // Generate dates array
+  const dates: string[] = [];
+  const percentile5: number[] = [];
+  const percentile25: number[] = [];
+  const percentile50: number[] = [];
+  const percentile75: number[] = [];
+  const percentile95: number[] = [];
+
+  // For each month, calculate percentiles across all simulations
+  for (let month = 0; month < timeHorizon; month++) {
+    // Generate date
+    const futureDate = new Date(startDate);
+    futureDate.setMonth(futureDate.getMonth() + month);
+    dates.push(futureDate.toISOString());
+
+    // Extract values at this month from all simulations
+    const valuesAtMonth = allResults
+      .map(r => r.monthlyNetWorth[month])
+      .filter(v => v !== undefined)
+      .sort((a, b) => a - b);
+
+    // Calculate percentiles
+    if (valuesAtMonth.length > 0) {
+      percentile5.push(calculatePercentile(valuesAtMonth, 5));
+      percentile25.push(calculatePercentile(valuesAtMonth, 25));
+      percentile50.push(calculatePercentile(valuesAtMonth, 50));
+      percentile75.push(calculatePercentile(valuesAtMonth, 75));
+      percentile95.push(calculatePercentile(valuesAtMonth, 95));
+    } else {
+      // Fallback to 0 if no data
+      percentile5.push(0);
+      percentile25.push(0);
+      percentile50.push(0);
+      percentile75.push(0);
+      percentile95.push(0);
+    }
+  }
+
+  return {
+    dates,
+    percentile5,
+    percentile25,
+    percentile50,
+    percentile75,
+    percentile95,
+  };
+}
+
+/**
  * Helper function to create a default simulation config from user profile
  */
 export function createSimulationConfig(params: {
