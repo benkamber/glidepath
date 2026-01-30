@@ -67,6 +67,7 @@ import { VelocityChart } from "@/components/VelocityChart";
 import { DeviationAlert } from "@/components/DeviationAlert";
 import { FIRECalculator } from "@/components/fire/FIRECalculator";
 import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
+import { RunwayAnalysis } from "@/components/RunwayAnalysis";
 // import { AIInsights } from "@/components/AIInsights"; // Removed - provides bad recommendations
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 import { DataSources } from "@/components/DataSources";
@@ -1122,10 +1123,14 @@ export default function NetWorthCalculator() {
         {/* Analysis Tools - Non-Chart Tools Only (Charts are in UnifiedChartSystem lenses) */}
         {entries.length >= 2 && profile && latestEntry && (
           <Tabs defaultValue="fire" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 gap-1">
+            <TabsList className="grid w-full grid-cols-3 gap-1">
               <TabsTrigger value="fire" className="gap-2 text-xs lg:text-sm">
                 <Flame className="h-4 w-4" />
                 <span className="hidden sm:inline">FIRE Calculator</span>
+              </TabsTrigger>
+              <TabsTrigger value="runway" className="gap-2 text-xs lg:text-sm">
+                <PiggyBank className="h-4 w-4" />
+                <span className="hidden sm:inline">Runway</span>
               </TabsTrigger>
               <TabsTrigger value="tools" className="gap-2 text-xs lg:text-sm">
                 <Calculator className="h-4 w-4" />
@@ -1138,6 +1143,15 @@ export default function NetWorthCalculator() {
                 currentNetWorth={latestEntry.totalNetWorth}
                 currentAge={profile.age}
                 annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+              />
+            </TabsContent>
+
+            <TabsContent value="runway" className="space-y-4 mt-4">
+              <RunwayAnalysis
+                currentNetWorth={latestEntry.totalNetWorth}
+                cashBalance={latestEntry.cash}
+                investmentBalance={latestEntry.totalNetWorth - latestEntry.cash}
+                historicalEntries={entries}
               />
             </TabsContent>
 
