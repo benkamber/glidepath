@@ -91,6 +91,8 @@ export interface UnifiedChartSystemProps {
   percentileData?: PercentileBand[];
   fireThresholds?: FIRELevel[];
   currentAge?: number;
+  projectionHorizonYears?: number;
+  onProjectionHorizonChange?: (years: number) => void;
 }
 
 const formatCurrency = (value: number) => {
@@ -111,6 +113,8 @@ export function UnifiedChartSystem({
   percentileData,
   fireThresholds,
   currentAge,
+  projectionHorizonYears = 10,
+  onProjectionHorizonChange,
 }: UnifiedChartSystemProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
   const [activeLayers, setActiveLayers] = useState<DataLayer[]>(['netWorth']);
@@ -349,6 +353,31 @@ export function UnifiedChartSystem({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Projection Horizon Controls (only visible when projection lens active) */}
+          {activeLens === 'projection' && onProjectionHorizonChange && (
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg border border-primary/20">
+              <Label className="text-sm font-medium">Projection Horizon:</Label>
+              <div className="flex gap-1">
+                {[10, 20, 30, 40, 50].map(years => (
+                  <Button
+                    key={years}
+                    variant={projectionHorizonYears === years ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onProjectionHorizonChange(years)}
+                    className="h-8 px-3"
+                  >
+                    {years}yr
+                  </Button>
+                ))}
+              </div>
+              {currentAge && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  (projects to age {currentAge + projectionHorizonYears})
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Chart */}

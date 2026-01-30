@@ -288,6 +288,7 @@ export default function NetWorthCalculator() {
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
   const [targetField, setTargetField] = useState<"totalNetWorth" | "cash">("totalNetWorth");
+  const [projectionHorizonYears, setProjectionHorizonYears] = useState(10);
 
   // SWR settings
   const [swrUseCashOnly, setSwrUseCashOnly] = useState(false);
@@ -402,9 +403,7 @@ export default function NetWorthCalculator() {
   const wealthProjection = useMemo(() => {
     if (!profile || !latestEntry) return undefined;
 
-    // Projection horizon: 10 years for now (TODO: make configurable in Task #26)
-    const projectionYears = 10;
-    const targetAge = profile.age + projectionYears;
+    const targetAge = profile.age + projectionHorizonYears;
 
     try {
       const projection = projectFutureWealth(
@@ -430,7 +429,7 @@ export default function NetWorthCalculator() {
       console.error('Error generating wealth projection:', error);
       return undefined;
     }
-  }, [profile, latestEntry, inferredSavingsRate]);
+  }, [profile, latestEntry, inferredSavingsRate, projectionHorizonYears]);
 
   // Growth calculations
   const netWorthGrowthRate = useMemo(
@@ -1082,6 +1081,8 @@ export default function NetWorthCalculator() {
             ]}
             percentileData={percentileData}
             currentAge={profile?.age}
+            projectionHorizonYears={projectionHorizonYears}
+            onProjectionHorizonChange={setProjectionHorizonYears}
           />
           );
         })()}
