@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onLoadDemo?: () => void;
 }
 
 const features = [
@@ -44,7 +45,7 @@ const features = [
   },
 ];
 
-export function LandingPage({ onGetStarted }: LandingPageProps) {
+export function LandingPage({ onGetStarted, onLoadDemo }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -65,10 +66,22 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             Compare against your age group, career profile, and metro area.
             Get honest feedback, not validation.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-            <Button size="lg" onClick={onGetStarted} className="text-base px-8 py-6">
-              Check Your Numbers
-            </Button>
+          <div className="flex flex-col items-center justify-center gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <Button size="lg" onClick={onGetStarted} className="text-base px-8 py-6">
+                Check Your Numbers
+              </Button>
+              {onLoadDemo && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={onLoadDemo}
+                  className="text-base px-8 py-6"
+                >
+                  👀 View Demo Profile
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               No signup. No tracking. 100% browser-local.
             </p>

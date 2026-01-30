@@ -387,8 +387,9 @@ export function getWageWithProgression(
   // Get next level comp for interpolation
   const nextLevel = levels[levelIndex + 1];
   if (!nextLevel) {
-    // At executive level, 3% annual growth
-    const multiplier = Math.pow(1.03, yearsInLevel);
+    // At executive level, 1.5% real annual growth (merit-based only, no inflation)
+    const REAL_INCOME_GROWTH = 0.015; // P1-2: Changed from 3% nominal to 1.5% real
+    const multiplier = Math.pow(1 + REAL_INCOME_GROWTH, yearsInLevel);
     return {
       ...baseEstimate,
       baseSalary: Math.round(baseEstimate.baseSalary * multiplier),

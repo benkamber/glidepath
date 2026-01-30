@@ -1,6 +1,11 @@
 // Wealth Accumulation Projection Model
 // Combines BLS wage data with SCF benchmarks for career-aware projections
 
+// Asset Class Return Assumptions (Real, after inflation)
+const CASH_RETURN = 0.02;       // High Yield Savings Account
+const INVESTMENT_RETURN = 0.07;  // Equity/Stock market historical average
+const OTHER_RETURN = 0.00;       // Other assets (vehicles, etc.) - depreciating/flat
+
 import {
   type Occupation,
   type CareerLevel,
@@ -27,9 +32,14 @@ export interface WealthModelInput {
   level?: CareerLevel; // If not provided, derived from years working
   metro: Metro;
   savingsRate?: number; // 0-1, e.g., 0.25 for 25% (optional - will be inferred if not provided)
-  annualReturn?: number; // Default 0.07 (7% real return)
+  annualReturn?: number; // Default 0.07 (7% real return for equities)
   taxDrag?: number; // Default 0.15 (15% for long-term capital gains) - reduces effective return
   currentNetWorth?: number; // Optional: for comparison
+  targetAllocation?: {
+    cashPercent: number;
+    investmentPercent: number;
+    otherPercent: number;
+  }; // Optional: for weighted return calculation
 }
 
 /**
@@ -98,8 +108,9 @@ export interface WealthModelOutput {
   scfPercentile: number;
   assumptions: {
     avgSavingsRate: number;
-    avgReturn: number;
-    effectiveReturn: number; // After-tax return
+    avgReturn: number; // Equity return assumption
+    portfolioReturn: number; // Weighted average across all asset classes
+    effectiveReturn: number; // After-tax weighted return
     taxDrag: number;
     avgIncomeGrowth: number;
     totalIncome: number;
@@ -182,10 +193,18 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     occupation,
     metro,
     savingsRate = 0.25,
-    annualReturn = 0.07,
+    annualReturn = 0.07, // Used for investment portion only
     taxDrag = 0.15, // Default 15% (long-term capital gains)
     currentNetWorth,
+    targetAllocation = { cashPercent: 0.20, investmentPercent: 0.70, otherPercent: 0.10 },
   } = input;
+
+  // Calculate weighted portfolio return based on asset allocation
+  // Each asset class has different expected returns
+  const portfolioReturn =
+    (targetAllocation.cashPercent * CASH_RETURN) +
+    (targetAllocation.investmentPercent * annualReturn) +
+    (targetAllocation.otherPercent * OTHER_RETURN);
 
   const yearsWorking = Math.max(0, currentAge - startAge);
   const level = input.level ?? getLevelForYears(yearsWorking);
@@ -206,8 +225,9 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     const income = wageEstimate.afterTaxComp;
     const annualSavings = Math.round(income * savingsRate);
 
-    // Apply tax drag to investment returns (capital gains, dividends, rebalancing)
-    const effectiveReturn = annualReturn * (1 - taxDrag);
+    // Apply tax drag to portfolio returns (capital gains, dividends, rebalancing)
+    // Use weighted portfolio return (cash @2%, investments @7%, other @0%)
+    const effectiveReturn = portfolioReturn * (1 - taxDrag);
     const investmentGrowth = Math.round(accumulatedWealth * effectiveReturn);
     accumulatedWealth += annualSavings + investmentGrowth;
 
@@ -240,8 +260,9 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     scfPercentile,
     assumptions: {
       avgSavingsRate: savingsRate,
-      avgReturn: annualReturn,
-      effectiveReturn: annualReturn * (1 - taxDrag), // After-tax return
+      avgReturn: annualReturn, // Equity return assumption
+      portfolioReturn: portfolioReturn, // Weighted average across all asset classes
+      effectiveReturn: portfolioReturn * (1 - taxDrag), // After-tax weighted return
       taxDrag: taxDrag,
       avgIncomeGrowth,
       totalIncome: Math.round(totalIncome),
