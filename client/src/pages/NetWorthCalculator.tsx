@@ -288,7 +288,16 @@ export default function NetWorthCalculator() {
   // Target calculator state
   const [targetAmount, setTargetAmount] = useState("");
   const [targetField, setTargetField] = useState<"totalNetWorth" | "cash">("totalNetWorth");
-  const [projectionHorizonYears, setProjectionHorizonYears] = useState(10);
+
+  // Projection horizon: use retirement age if set, otherwise manual selection
+  const projectionHorizonYears = useMemo(() => {
+    if (profile?.targetRetirementAge && profile.age < profile.targetRetirementAge) {
+      return profile.targetRetirementAge - profile.age;
+    }
+    return manualProjectionYears;
+  }, [profile?.targetRetirementAge, profile?.age, manualProjectionYears]);
+
+  const [manualProjectionYears, setManualProjectionYears] = useState(10);
 
   // SWR settings
   const [swrUseCashOnly, setSwrUseCashOnly] = useState(false);
@@ -1082,7 +1091,8 @@ export default function NetWorthCalculator() {
             percentileData={percentileData}
             currentAge={profile?.age}
             projectionHorizonYears={projectionHorizonYears}
-            onProjectionHorizonChange={setProjectionHorizonYears}
+            onProjectionHorizonChange={setManualProjectionYears}
+            targetRetirementAge={profile?.targetRetirementAge}
           />
           );
         })()}

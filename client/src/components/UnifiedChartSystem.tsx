@@ -94,6 +94,7 @@ export interface UnifiedChartSystemProps {
   currentAge?: number;
   projectionHorizonYears?: number;
   onProjectionHorizonChange?: (years: number) => void;
+  targetRetirementAge?: number;
 }
 
 const formatCurrency = (value: number) => {
@@ -116,6 +117,7 @@ export function UnifiedChartSystem({
   currentAge,
   projectionHorizonYears = 10,
   onProjectionHorizonChange,
+  targetRetirementAge,
 }: UnifiedChartSystemProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
   const [activeLayers, setActiveLayers] = useState<DataLayer[]>(['netWorth']);
@@ -370,6 +372,16 @@ export function UnifiedChartSystem({
           {activeLens === 'projection' && onProjectionHorizonChange && (
             <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg border border-primary/20">
               <Label className="text-sm font-medium">Projection Horizon:</Label>
+              {targetRetirementAge && currentAge && currentAge < targetRetirementAge ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="gap-1">
+                    🎯 To Retirement: {projectionHorizonYears}yr (age {targetRetirementAge})
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    (Set in profile. Click buttons below to override.)
+                  </span>
+                </div>
+              ) : null}
               <div className="flex gap-1">
                 {[10, 20, 30, 40, 50].map(years => (
                   <Button
@@ -383,7 +395,7 @@ export function UnifiedChartSystem({
                   </Button>
                 ))}
               </div>
-              {currentAge && (
+              {currentAge && !(targetRetirementAge && currentAge < targetRetirementAge) && (
                 <span className="text-xs text-muted-foreground ml-2">
                   (projects to age {currentAge + projectionHorizonYears})
                 </span>

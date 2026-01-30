@@ -259,6 +259,48 @@ export function ProfileSection({
             </p>
           </div>
 
+          {/* Retirement Planning Goals */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="retirementAge" className="flex items-center gap-2">
+                🎯 Target Retirement Age (Optional)
+              </Label>
+              <Input
+                id="retirementAge"
+                type="number"
+                min={profile?.age || 18}
+                max={90}
+                placeholder="e.g., 65"
+                value={profile?.targetRetirementAge ?? ''}
+                onChange={(e) => onProfileChange({ targetRetirementAge: e.target.value ? parseInt(e.target.value) : undefined })}
+              />
+              <p className="text-xs text-muted-foreground">
+                When do you plan to retire? Used to auto-calculate projection horizon.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="retirementSpending" className="flex items-center gap-2">
+                🏖️ Retirement Monthly Spending (Optional)
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="retirementSpending"
+                  type="number"
+                  step="100"
+                  placeholder={profile?.monthlyExpenses ? `Default: ${profile.monthlyExpenses}` : 'e.g., 4000'}
+                  value={profile?.targetRetirementSpending ?? ''}
+                  onChange={(e) => onProfileChange({ targetRetirementSpending: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="pl-7"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Expected spending in retirement. Defaults to current expenses if blank.
+              </p>
+            </div>
+          </div>
+
           {/* Savings Rate - REMOVED: Now inferred from historical data */}
           {/* This provides more accurate modeling based on actual behavior */}
 

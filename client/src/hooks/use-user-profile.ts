@@ -25,6 +25,9 @@ export interface UserProfile {
   totalCompensation?: number;
   // Monthly expenses for FIRE planning and sustainability analysis
   monthlyExpenses?: number;
+  // Retirement planning goals
+  targetRetirementAge?: number;
+  targetRetirementSpending?: number; // Monthly spending in retirement (defaults to current expenses)
 }
 
 const PROFILE_STORAGE_KEY = 'user-profile';
