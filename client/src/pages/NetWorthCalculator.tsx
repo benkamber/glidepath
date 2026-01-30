@@ -70,7 +70,8 @@ import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 // import { AIInsights } from "@/components/AIInsights"; // Removed - provides bad recommendations
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 import { DataSources } from "@/components/DataSources";
-import { DataImport } from "@/components/DataImport";
+// import { DataImport } from "@/components/DataImport"; // Disabled - AI costs
+import { SimpleDataImport } from "@/components/SimpleDataImport";
 import { MonteCarloRunner } from "@/components/monte-carlo/MonteCarloRunner";
 import { MonteCarloResults } from "@/components/monte-carlo/MonteCarloResults";
 import type { AggregatedResults } from "@/lib/monte-carlo";
@@ -1307,8 +1308,8 @@ export default function NetWorthCalculator() {
           </Tabs>
         )}
 
-        {/* Data Import - AI-Powered */}
-        <DataImport
+        {/* Data Import - Local Parser (No AI Costs) */}
+        <SimpleDataImport
           onImport={(importedEntries) => {
             // Convert imported entries to Entry format and add them
             const newEntries = importedEntries.map(ie => ({
