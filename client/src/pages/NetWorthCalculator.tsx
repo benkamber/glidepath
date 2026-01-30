@@ -67,7 +67,7 @@ import { VelocityChart } from "@/components/VelocityChart";
 import { DeviationAlert } from "@/components/DeviationAlert";
 import { FIRECalculator } from "@/components/fire/FIRECalculator";
 import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
-import { AIInsights } from "@/components/AIInsights";
+// import { AIInsights } from "@/components/AIInsights"; // Removed - provides bad recommendations
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 import { DataSources } from "@/components/DataSources";
 import { DataImport } from "@/components/DataImport";
@@ -1007,173 +1007,7 @@ export default function NetWorthCalculator() {
             </CardContent>
           </Card>
 
-          {/* Charts */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg">Wealth Trajectory (Unified System)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {chartData.length >= 2 ? (
-                <Tabs defaultValue="combined" className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="combined">Combined</TabsTrigger>
-                    <TabsTrigger value="networth">Net Worth</TabsTrigger>
-                    <TabsTrigger value="cash">Cash</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="combined" className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <YAxis
-                          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                          formatter={(value: number) => [formatCurrency(value), ""]}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="netWorth"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Net Worth"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="cash"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          dot={false}
-                          name="Cash"
-                        />
-                        {trendlineData.length > 0 && (
-                          <>
-                            <Line
-                              type="monotone"
-                              data={trendlineData}
-                              dataKey="netWorthTrend"
-                              stroke="hsl(var(--primary))"
-                              strokeWidth={1}
-                              strokeDasharray="5 5"
-                              dot={false}
-                              name="Net Worth Trend"
-                            />
-                            <Line
-                              type="monotone"
-                              data={trendlineData}
-                              dataKey="cashTrend"
-                              stroke="#10b981"
-                              strokeWidth={1}
-                              strokeDasharray="5 5"
-                              dot={false}
-                              name="Cash Trend"
-                            />
-                          </>
-                        )}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </TabsContent>
-
-                  <TabsContent value="networth" className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="netWorthGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop
-                              offset="5%"
-                              stopColor="hsl(var(--primary))"
-                              stopOpacity={0.3}
-                            />
-                            <stop
-                              offset="95%"
-                              stopColor="hsl(var(--primary))"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <YAxis
-                          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                          formatter={(value: number) => [formatCurrency(value), "Net Worth"]}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="netWorth"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2}
-                          fill="url(#netWorthGradient)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </TabsContent>
-
-                  <TabsContent value="cash" className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <YAxis
-                          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                          }}
-                          formatter={(value: number) => [formatCurrency(value), "Cash"]}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="cash"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          fill="url(#cashGradient)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </TabsContent>
-                </Tabs>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  Add at least 2 entries to see trends
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Old manual charts REMOVED - replaced by UnifiedChartSystem below */}
         </div>
 
         {/* Unified Chart System - New Advanced Visualization */}
@@ -1228,21 +1062,21 @@ export default function NetWorthCalculator() {
           );
         })()}
 
-        {/* Enhanced Projection with Career Context */}
-        <EnhancedProjection
+        {/* Enhanced Projection - CONSOLIDATED into UnifiedChartSystem projection lens */}
+        {/* <EnhancedProjection
           currentNetWorth={latestEntry?.totalNetWorth ?? null}
           profile={profile}
           monteCarloData={monteCarloNetWorth}
           historicalGrowthRate={annualizedNetWorthGrowth}
-        />
+        /> */}
 
         {/* Deviation Alert - Shows if significantly ahead or behind trajectory */}
         {entries.length >= 3 && (
           <DeviationAlert entries={entries} />
         )}
 
-        {/* AI Insights - Observational analysis */}
-        {entries.length >= 2 && profile && latestEntry && (
+        {/* AI Insights - REMOVED: Provides bad recommendations about cash allocation */}
+        {/* {entries.length >= 2 && profile && latestEntry && (
           <AIInsights
             currentNetWorth={latestEntry.totalNetWorth}
             cash={latestEntry.cash}
@@ -1282,7 +1116,7 @@ export default function NetWorthCalculator() {
                 : undefined
             }
           />
-        )}
+        )} */}
 
         {/* Advanced Analysis Tools */}
         {entries.length >= 2 && profile && latestEntry && (
