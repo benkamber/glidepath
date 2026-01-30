@@ -4,6 +4,7 @@ import {
   Line,
   Area,
   AreaChart,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -200,7 +201,7 @@ export function UnifiedChartSystem({
       });
     }
 
-    // Add projection data
+    // Add projection data with Monte Carlo probability bands
     if (activeLens === 'projection' && (monteCarloData || profileProjection)) {
       // Add future dates for projection
       const lastEntry = filteredEntries[filteredEntries.length - 1];
@@ -211,12 +212,23 @@ export function UnifiedChartSystem({
           const futureDate = new Date(lastDate);
           futureDate.setFullYear(futureDate.getFullYear() + i + 1);
 
-          data.push({
+          const dataPoint: any = {
             date: futureDate.getFullYear().toString(), // Match main data format
             fullDate: futureDate.toISOString(),
             projection: proj.expectedNW,
             projectionIncome: proj.income,
-          });
+          };
+
+          // Add Monte Carlo percentiles if available
+          if (monteCarloData && i < monteCarloData.dates.length) {
+            dataPoint.mc5 = monteCarloData.percentile5[i];
+            dataPoint.mc25 = monteCarloData.percentile25[i];
+            dataPoint.mc50 = monteCarloData.percentile50[i];
+            dataPoint.mc75 = monteCarloData.percentile75[i];
+            dataPoint.mc95 = monteCarloData.percentile95[i];
+          }
+
+          data.push(dataPoint);
         });
       }
     }
@@ -383,7 +395,7 @@ export function UnifiedChartSystem({
         {/* Chart */}
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={enrichedChartData}>
+            <ComposedChart data={enrichedChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="date"
@@ -481,17 +493,72 @@ export function UnifiedChartSystem({
                 </>
               )}
 
-              {/* Projection Lens */}
+              {/* Projection Lens with Monte Carlo Probability Bands */}
               {activeLens === 'projection' && (
-                <Line
-                  type="monotone"
-                  dataKey="projection"
-                  stroke="hsl(142 76% 36%)"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  name="Projected Path"
-                />
+                <>
+                  {/* Outer band: 5th-95th percentile (widest uncertainty) */}
+                  <Area
+                    type="monotone"
+                    dataKey="mc95"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    fill="hsl(var(--primary))"
+                    fillOpacity={0.1}
+                    name="95th percentile"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="mc5"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    fill="hsl(var(--background))"
+                    fillOpacity={1}
+                    name="5th percentile"
+                  />
+
+                  {/* Middle band: 25th-75th percentile (likely range) */}
+                  <Area
+                    type="monotone"
+                    dataKey="mc75"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1}
+                    fill="hsl(var(--primary))"
+                    fillOpacity={0.2}
+                    name="75th percentile"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="mc25"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1}
+                    fill="hsl(var(--background))"
+                    fillOpacity={1}
+                    name="25th percentile"
+                  />
+
+                  {/* Median line: 50th percentile (most likely) */}
+                  <Line
+                    type="monotone"
+                    dataKey="mc50"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={false}
+                    name="Median projection (50th %ile)"
+                  />
+
+                  {/* Career-based projection (deterministic model) */}
+                  <Line
+                    type="monotone"
+                    dataKey="projection"
+                    stroke="hsl(142 76% 36%)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Career model"
+                  />
+                </>
               )}
 
               {/* FIRE Thresholds */}
@@ -509,7 +576,7 @@ export function UnifiedChartSystem({
                   }}
                 />
               ))}
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
@@ -519,7 +586,7 @@ export function UnifiedChartSystem({
             <Badge variant="outline" className="gap-1">
               {activeLens === 'velocity' && '📈 Velocity: Rate of wealth accumulation'}
               {activeLens === 'peer' && '👥 Peer: SCF percentile bands by age'}
-              {activeLens === 'projection' && '🎯 Projection: Expected future trajectory'}
+              {activeLens === 'projection' && '🎯 Projection: Shaded bands show probability range (darker = more likely). Thick line = median outcome (50% chance). Career model (dashed green) = deterministic BLS-based trajectory.'}
               {activeLens === 'fire' && '🔥 FIRE: Financial independence milestones'}
               {activeLens === 'deviation' && '⚠️ Deviation: Statistical anomaly detection'}
             </Badge>
