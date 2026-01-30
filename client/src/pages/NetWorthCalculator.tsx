@@ -59,7 +59,7 @@ import { RoastMode } from "@/components/RoastMode";
 import { COLComparisonSimplified } from "@/components/COLComparisonSimplified";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { getWageEstimate } from "@/data/bls-wage-data";
-import { inferSavingsRate } from "@/models/wealth-model";
+import { inferSavingsRate, projectFutureWealth, projectionScenarios } from "@/models/wealth-model";
 import { wealthByAge, getBracketForAge } from "@/data/scf-data";
 
 // New analysis components
@@ -397,6 +397,40 @@ export default function NetWorthCalculator() {
 
     return inferred;
   }, [profile, entries]);
+
+  // Generate proper wealth projection using career model (replaces simple compound growth)
+  const wealthProjection = useMemo(() => {
+    if (!profile || !latestEntry) return undefined;
+
+    // Projection horizon: 10 years for now (TODO: make configurable in Task #26)
+    const projectionYears = 10;
+    const targetAge = profile.age + projectionYears;
+
+    try {
+      const projection = projectFutureWealth(
+        {
+          currentAge: profile.age,
+          startAge: profile.age - profile.yearsInWorkforce,
+          occupation: profile.occupation,
+          level: profile.level,
+          metro: profile.metro,
+          savingsRate: inferredSavingsRate,
+          annualReturn: 0.07, // 7% real return
+          currentNetWorth: latestEntry.totalNetWorth,
+        },
+        targetAge,
+        projectionScenarios['current'] // Use "current path" scenario
+      );
+
+      return {
+        yearByYear: projection.yearByYear,
+        assumptions: projection.assumptions,
+      };
+    } catch (error) {
+      console.error('Error generating wealth projection:', error);
+      return undefined;
+    }
+  }, [profile, latestEntry, inferredSavingsRate]);
 
   // Growth calculations
   const netWorthGrowthRate = useMemo(
@@ -1039,19 +1073,7 @@ export default function NetWorthCalculator() {
               investment: e.investment || (e.totalNetWorth - e.cash),
             }))}
             monteCarloData={monteCarloNetWorth || undefined}
-            profileProjection={
-              profile
-                ? {
-                    yearByYear: Array.from({ length: 10 }, (_, i) => ({
-                      age: profile.age + i + 1,
-                      expectedNW: latestEntry
-                        ? latestEntry.totalNetWorth * Math.pow(1 + annualizedNetWorthGrowth, i + 1)
-                        : 0,
-                      income: getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp,
-                    })),
-                  }
-                : undefined
-            }
+            profileProjection={wealthProjection}
             fireThresholds={[
               { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
               { name: "Regular FIRE", amount: 1500000, color: "#10b981" },
