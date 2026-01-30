@@ -28,6 +28,7 @@ export interface WealthModelInput {
   metro: Metro;
   savingsRate?: number; // 0-1, e.g., 0.25 for 25% (optional - will be inferred if not provided)
   annualReturn?: number; // Default 0.07 (7% real return)
+  taxDrag?: number; // Default 0.15 (15% for long-term capital gains) - reduces effective return
   currentNetWorth?: number; // Optional: for comparison
 }
 
@@ -98,6 +99,8 @@ export interface WealthModelOutput {
   assumptions: {
     avgSavingsRate: number;
     avgReturn: number;
+    effectiveReturn: number; // After-tax return
+    taxDrag: number;
     avgIncomeGrowth: number;
     totalIncome: number;
     totalSavings: number;
@@ -180,6 +183,7 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     metro,
     savingsRate = 0.25,
     annualReturn = 0.07,
+    taxDrag = 0.15, // Default 15% (long-term capital gains)
     currentNetWorth,
   } = input;
 
@@ -202,7 +206,9 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     const income = wageEstimate.afterTaxComp;
     const annualSavings = Math.round(income * savingsRate);
 
-    const investmentGrowth = Math.round(accumulatedWealth * annualReturn);
+    // Apply tax drag to investment returns (capital gains, dividends, rebalancing)
+    const effectiveReturn = annualReturn * (1 - taxDrag);
+    const investmentGrowth = Math.round(accumulatedWealth * effectiveReturn);
     accumulatedWealth += annualSavings + investmentGrowth;
 
     totalIncome += income;
@@ -235,6 +241,8 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     assumptions: {
       avgSavingsRate: savingsRate,
       avgReturn: annualReturn,
+      effectiveReturn: annualReturn * (1 - taxDrag), // After-tax return
+      taxDrag: taxDrag,
       avgIncomeGrowth,
       totalIncome: Math.round(totalIncome),
       totalSavings: Math.round(totalSavings),

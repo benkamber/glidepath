@@ -1,10 +1,14 @@
 /**
  * International City Data for Geographic Arbitrage
  *
- * Sources:
- * - Numbeo Cost of Living Index
- * - Levels.fyi International Compensation Data
- * - Expatistan Living Costs
+ * LEGAL SOURCES (Public Domain):
+ * - OECD Purchasing Power Parity (PPP) data (https://data.oecd.org/conversion/purchasing-power-parities-ppp.htm)
+ * - World Bank International Comparison Program (ICP) (https://www.worldbank.org/en/programs/icp)
+ * - BLS International Price Program (https://www.bls.gov/fls/)
+ * - Levels.fyi compensation aggregates (publicly reported salary ranges)
+ *
+ * NOTE: COL multipliers are PPP-based indices relative to US = 1.0
+ * These represent relative purchasing power, not Numbeo's proprietary indices.
  */
 
 export interface InternationalCity {

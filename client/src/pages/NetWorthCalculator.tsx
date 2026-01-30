@@ -763,16 +763,17 @@ export default function NetWorthCalculator() {
               currentNetWorth={latestEntry?.totalNetWorth ?? null}
               profile={profile}
             />
-            {/* Export Data Button */}
+            {/* Export Data Button - PROMINENT for data safety */}
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleExportData}
               disabled={entries.length === 0}
-              title="Export your data as JSON backup"
+              title="⚠️ IMPORTANT: Export your data regularly - localStorage can be cleared"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              💾 Backup Data
             </Button>
 
             {/* Import Data Button */}

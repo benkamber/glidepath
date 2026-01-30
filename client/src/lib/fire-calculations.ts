@@ -13,7 +13,7 @@ export const FIRE_LEVELS: FIRELevel[] = [
     description: "Frugal lifestyle with annual expenses under $40k",
     minAnnualExpenses: 0,
     maxAnnualExpenses: 40000,
-    withdrawalRate: 0.04, // 4% SWR
+    withdrawalRate: 0.035, // 3.5% SWR (Morningstar 2024 consensus for early retirement)
     color: "#fbbf24", // yellow
   },
   {
@@ -21,7 +21,7 @@ export const FIRE_LEVELS: FIRELevel[] = [
     description: "Comfortable middle-class lifestyle ($40-60k/year)",
     minAnnualExpenses: 40000,
     maxAnnualExpenses: 60000,
-    withdrawalRate: 0.04, // 4% SWR
+    withdrawalRate: 0.035, // 3.5% SWR (conservative for 50+ year horizons)
     color: "#10b981", // green
   },
   {

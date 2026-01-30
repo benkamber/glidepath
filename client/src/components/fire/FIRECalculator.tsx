@@ -408,7 +408,7 @@ export function FIRECalculator({
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Standard: 2.5% (Fat), 3.5% (Chubby), 4% (Regular/Lean)
+                  Standard: 2.5% (Fat), 3.5% (Chubby/Regular/Lean) per Morningstar 2024
                 </p>
               </div>
 
