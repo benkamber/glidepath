@@ -1119,23 +1119,15 @@ export default function NetWorthCalculator() {
           />
         )} */}
 
-        {/* Advanced Analysis Tools */}
+        {/* Analysis Tools - Non-Chart Tools Only (Charts are in UnifiedChartSystem lenses) */}
         {entries.length >= 2 && profile && latestEntry && (
           <Tabs defaultValue="fire" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-1">
+            <TabsList className="grid w-full grid-cols-2 gap-1">
               <TabsTrigger value="fire" className="gap-2 text-xs lg:text-sm">
                 <Flame className="h-4 w-4" />
-                <span className="hidden sm:inline">FIRE</span>
+                <span className="hidden sm:inline">FIRE Calculator</span>
               </TabsTrigger>
-              <TabsTrigger value="scenarios" className="gap-2 text-xs lg:text-sm">
-                <TrendingUp className="h-4 w-4" />
-                <span className="hidden sm:inline">Scenarios</span>
-              </TabsTrigger>
-              <TabsTrigger value="velocity" className="gap-2 text-xs lg:text-sm">
-                <TrendingUp className="h-4 w-4" />
-                <span className="hidden sm:inline">Velocity</span>
-              </TabsTrigger>
-              <TabsTrigger value="legacy" className="gap-2 text-xs lg:text-sm">
+              <TabsTrigger value="tools" className="gap-2 text-xs lg:text-sm">
                 <Calculator className="h-4 w-4" />
                 <span className="hidden sm:inline">Tools</span>
               </TabsTrigger>
@@ -1149,24 +1141,10 @@ export default function NetWorthCalculator() {
               />
             </TabsContent>
 
-            <TabsContent value="scenarios" className="space-y-4 mt-4">
-              <MultiScenarioAnalysis
-                currentNetWorth={latestEntry.totalNetWorth}
-                annualSavings={
-                  getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp *
-                  inferredSavingsRate
-                }
-                years={10}
-                historicalData={entries}
-                fireTarget={2000000}
-              />
-            </TabsContent>
+            {/* REMOVED: Scenarios tab - use UnifiedChartSystem "Projection" lens instead */}
+            {/* REMOVED: Velocity tab - use UnifiedChartSystem "Velocity" lens instead */}
 
-            <TabsContent value="velocity" className="space-y-4 mt-4">
-              <VelocityChart entries={entries} />
-            </TabsContent>
-
-            <TabsContent value="legacy" className="space-y-4 mt-4">
+            <TabsContent value="tools" className="space-y-4 mt-4">
               {/* Legacy Analysis Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Time to Target */}
