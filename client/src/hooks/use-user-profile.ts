@@ -2,10 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Occupation, CareerLevel, Metro } from '../data/bls-wage-data';
 import type { EducationLevel } from '../data/scf-data';
 
+export interface TaxTreatment {
+  taxablePercent: number;      // e.g., 0.30 for 30% in taxable brokerage
+  taxAdvantagePercent: number; // e.g., 0.70 for 70% in 401k/IRA
+}
+
 export interface TargetAllocation {
   cashPercent: number;       // e.g., 0.20 for 20%
   investmentPercent: number; // e.g., 0.70 for 70%
   otherPercent: number;      // e.g., 0.10 for 10%
+  taxTreatment?: TaxTreatment; // Optional for backward compatibility
 }
 
 export interface UserProfile {
@@ -53,6 +59,27 @@ export function validateAllocation(allocation: TargetAllocation): { isValid: boo
   return { isValid: true };
 }
 
+/**
+ * Validate that tax treatment percentages sum to 1.0 (100%)
+ */
+export function validateTaxTreatment(treatment: TaxTreatment): { isValid: boolean; error?: string } {
+  const sum = treatment.taxablePercent + treatment.taxAdvantagePercent;
+  const tolerance = 0.001; // Allow for floating point rounding
+
+  if (Math.abs(sum - 1.0) > tolerance) {
+    return {
+      isValid: false,
+      error: `Tax treatment must sum to 100% (currently ${(sum * 100).toFixed(1)}%)`
+    };
+  }
+
+  if (treatment.taxablePercent < 0 || treatment.taxAdvantagePercent < 0) {
+    return { isValid: false, error: 'Percentages cannot be negative' };
+  }
+
+  return { isValid: true };
+}
+
 const defaultProfile: UserProfile = {
   age: 30,
   yearsInWorkforce: 8,
@@ -66,6 +93,10 @@ const defaultProfile: UserProfile = {
     cashPercent: 0.20,       // 20% cash reserve
     investmentPercent: 0.70, // 70% market investments
     otherPercent: 0.10,      // 10% other assets (real estate, etc.)
+    taxTreatment: {
+      taxablePercent: 0.30,      // 30% in taxable brokerage
+      taxAdvantagePercent: 0.70, // 70% in 401k/IRA (tax-advantaged)
+    },
   },
 };
 
@@ -79,6 +110,15 @@ export function useUserProfile() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as UserProfile;
+
+        // MIGRATION: Add tax treatment if missing
+        if (parsed.targetAllocation && !parsed.targetAllocation.taxTreatment) {
+          parsed.targetAllocation.taxTreatment = {
+            taxablePercent: 0.30,      // Default: 30% taxable
+            taxAdvantagePercent: 0.70, // Default: 70% tax-advantaged
+          };
+        }
+
         setProfileState(parsed);
       } catch (e) {
         console.error('Failed to parse stored profile:', e);

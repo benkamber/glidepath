@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config(); // Load .env file
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes, seedDatabase } from "./routes";
 import { registerAIRoutes } from "./routes/ai";

@@ -2,6 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { readFileSync } from "fs";
+
+// Read version from package.json for Day 1 Operations visibility
+const packageJson = JSON.parse(
+  readFileSync(path.resolve(import.meta.dirname, "package.json"), "utf-8")
+);
 
 export default defineConfig({
   plugins: [
@@ -30,6 +36,9 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   server: {
     fs: {

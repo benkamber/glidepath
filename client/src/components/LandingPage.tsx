@@ -157,14 +157,28 @@ export function LandingPage({ onGetStarted, onLoadDemo }: LandingPageProps) {
         </Button>
       </div>
 
-      {/* Footer */}
-      <div className="border-t py-6 text-center text-xs text-muted-foreground">
+      {/* Footer - Day 1 Operations Protocol */}
+      <div className="border-t py-6 text-center text-xs text-muted-foreground space-y-2">
         <p>
           Built for the Blind/Reddit crowd who want real data, not validation.
         </p>
-        <p className="mt-1">
+        <p>
           Data: Federal Reserve SCF 2022 + BLS OES 2023
         </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <a
+            href="https://github.com/anthropics/claude-code/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline font-medium"
+          >
+            Report a Bug / Feedback
+          </a>
+          <span>•</span>
+          <span className="text-muted-foreground/70">
+            v{__APP_VERSION__}
+          </span>
+        </div>
       </div>
     </div>
   );

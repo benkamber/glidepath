@@ -1505,7 +1505,7 @@ export default function NetWorthCalculator() {
           </CardContent>
         </Card>
 
-        {/* Footer */}
+        {/* Footer - Day 1 Operations Protocol */}
         <div className="text-center text-xs text-muted-foreground pt-4 border-t space-y-1">
           <p>All data stored locally in your browser. No data leaves your device.</p>
           <p>
@@ -1514,15 +1514,30 @@ export default function NetWorthCalculator() {
               View Methodology
             </a>
           </p>
-          <button
-            onClick={() => {
-              removeItem('nw_tracker_onboarded');
-              window.location.reload();
-            }}
-            className="text-primary hover:underline"
-          >
-            About this tool
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                removeItem('nw_tracker_onboarded');
+                window.location.reload();
+              }}
+              className="text-primary hover:underline"
+            >
+              About this tool
+            </button>
+            <span>•</span>
+            <a
+              href="https://github.com/anthropics/claude-code/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              Report a Bug / Feedback
+            </a>
+            <span>•</span>
+            <span className="text-muted-foreground/70">
+              v{__APP_VERSION__}
+            </span>
+          </div>
         </div>
       </div>
     </div>

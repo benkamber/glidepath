@@ -1,10 +1,17 @@
 // Wealth Accumulation Projection Model
 // Combines BLS wage data with SCF benchmarks for career-aware projections
 
-// Asset Class Return Assumptions (Real, after inflation)
-const CASH_RETURN = 0.02;       // High Yield Savings Account
-const INVESTMENT_RETURN = 0.07;  // Equity/Stock market historical average
-const OTHER_RETURN = 0.00;       // Other assets (vehicles, etc.) - depreciating/flat
+import {
+  REAL_RETURN_CASH,
+  REAL_RETURN_INVESTMENT,
+  REAL_RETURN_OTHER,
+  DEFAULT_TAX_RATE_LTCG,
+} from '../config/constants';
+
+// Legacy constants (kept for backward compatibility)
+const CASH_RETURN = REAL_RETURN_CASH;
+const INVESTMENT_RETURN = REAL_RETURN_INVESTMENT;
+const OTHER_RETURN = REAL_RETURN_OTHER;
 
 import {
   type Occupation,
@@ -39,6 +46,10 @@ export interface WealthModelInput {
     cashPercent: number;
     investmentPercent: number;
     otherPercent: number;
+    taxTreatment?: {
+      taxablePercent: number;
+      taxAdvantagePercent: number;
+    };
   }; // Optional: for weighted return calculation
 }
 
@@ -184,6 +195,41 @@ export const projectionScenarios: Record<string, ProjectionScenario> = {
 };
 
 /**
+ * Calculate effective tax drag based on asset allocation and tax treatment
+ *
+ * Tax drag is ONLY applied to TAXABLE investments.
+ * Tax-advantaged accounts (401k, IRA) grow tax-free during accumulation.
+ *
+ * @param portfolioReturn - Weighted portfolio return across all asset classes
+ * @param investmentPercent - Percentage allocated to investments (vs cash/other)
+ * @param taxTreatment - Split between taxable and tax-advantaged accounts
+ * @param defaultTaxRate - Tax rate to apply (default 15% for LTCG)
+ * @returns Effective after-tax return
+ */
+function calculateEffectiveReturn(
+  portfolioReturn: number,
+  investmentPercent: number,
+  taxTreatment: { taxablePercent: number; taxAdvantagePercent: number } | undefined,
+  defaultTaxRate: number = 0.15
+): number {
+  // If no tax treatment specified, apply flat drag (legacy behavior)
+  if (!taxTreatment) {
+    return portfolioReturn * (1 - defaultTaxRate);
+  }
+
+  // Calculate return components
+  const nonInvestmentPercent = 1 - investmentPercent;
+  const nonInvestmentReturn = portfolioReturn * nonInvestmentPercent;
+  const investmentReturn = portfolioReturn * investmentPercent;
+
+  // Apply tax drag ONLY to taxable portion of investments
+  const taxableReturn = investmentReturn * taxTreatment.taxablePercent * (1 - defaultTaxRate);
+  const taxAdvantageReturn = investmentReturn * taxTreatment.taxAdvantagePercent; // No drag
+
+  return nonInvestmentReturn + taxableReturn + taxAdvantageReturn;
+}
+
+/**
  * Models expected wealth accumulation based on career profile
  */
 export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput {
@@ -225,22 +271,43 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     const income = wageEstimate.afterTaxComp;
     const annualSavings = Math.round(income * savingsRate);
 
-    // Apply tax drag to portfolio returns (capital gains, dividends, rebalancing)
-    // Use weighted portfolio return (cash @2%, investments @7%, other @0%)
-    const effectiveReturn = portfolioReturn * (1 - taxDrag);
-    const investmentGrowth = Math.round(accumulatedWealth * effectiveReturn);
-    accumulatedWealth += annualSavings + investmentGrowth;
+    // P1-1: Weighted Asset Returns - Calculate growth per asset bucket
+    // 1. Decompose wealth based on target allocation (rebalancing assumption)
+    const cashAmount = accumulatedWealth * targetAllocation.cashPercent;
+    const investAmount = accumulatedWealth * targetAllocation.investmentPercent;
+    const otherAmount = accumulatedWealth * targetAllocation.otherPercent;
+
+    // 2. Calculate growth per bucket
+    const cashGrowth = cashAmount * REAL_RETURN_CASH;
+    const otherGrowth = otherAmount * REAL_RETURN_OTHER;
+
+    // 3. Investment growth with tax treatment (only investments are taxed)
+    let investGrowth: number;
+    if (targetAllocation.taxTreatment) {
+      // Apply tax treatment: split investment growth by tax status
+      const rawInvestGrowth = investAmount * annualReturn;
+      const taxableGrowth = rawInvestGrowth * targetAllocation.taxTreatment.taxablePercent * (1 - taxDrag);
+      const taxAdvantageGrowth = rawInvestGrowth * targetAllocation.taxTreatment.taxAdvantagePercent;
+      investGrowth = taxableGrowth + taxAdvantageGrowth;
+    } else {
+      // Legacy: flat tax drag on all investment growth
+      investGrowth = investAmount * annualReturn * (1 - taxDrag);
+    }
+
+    // 4. Aggregate total growth
+    const yearGrowth = Math.round(cashGrowth + investGrowth + otherGrowth);
+    accumulatedWealth += annualSavings + yearGrowth;
 
     totalIncome += income;
     totalSavings += annualSavings;
-    totalInvestmentGrowth += investmentGrowth;
+    totalInvestmentGrowth += yearGrowth;
 
     yearByYear.push({
       age,
       expectedNW: Math.round(accumulatedWealth),
       income: wageEstimate.totalComp,
       savings: annualSavings,
-      investmentGrowth,
+      investmentGrowth: yearGrowth,
       level: currentLevel,
     });
   }
@@ -254,6 +321,27 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     ? Math.pow(lastYearIncome / firstYearIncome, 1 / (years - 1)) - 1
     : 0;
 
+  // Calculate effective return (weighted, after-tax)
+  // Tax drag only applies to investments, not cash or other assets
+  let effectiveReturn: number;
+  if (targetAllocation.taxTreatment) {
+    const investEffectiveReturn = annualReturn * (
+      targetAllocation.taxTreatment.taxablePercent * (1 - taxDrag) +
+      targetAllocation.taxTreatment.taxAdvantagePercent
+    );
+    effectiveReturn =
+      (targetAllocation.cashPercent * REAL_RETURN_CASH) +
+      (targetAllocation.investmentPercent * investEffectiveReturn) +
+      (targetAllocation.otherPercent * REAL_RETURN_OTHER);
+  } else {
+    // Legacy: apply tax drag only to investment portion
+    const investAfterTax = annualReturn * (1 - taxDrag);
+    effectiveReturn =
+      (targetAllocation.cashPercent * REAL_RETURN_CASH) +
+      (targetAllocation.investmentPercent * investAfterTax) +
+      (targetAllocation.otherPercent * REAL_RETURN_OTHER);
+  }
+
   const output: WealthModelOutput = {
     expectedNetWorth: Math.round(accumulatedWealth),
     yearByYear,
@@ -261,8 +349,8 @@ export function modelExpectedWealth(input: WealthModelInput): WealthModelOutput 
     assumptions: {
       avgSavingsRate: savingsRate,
       avgReturn: annualReturn, // Equity return assumption
-      portfolioReturn: portfolioReturn, // Weighted average across all asset classes
-      effectiveReturn: portfolioReturn * (1 - taxDrag), // After-tax weighted return
+      portfolioReturn: portfolioReturn, // Weighted average across all asset classes (before tax)
+      effectiveReturn: effectiveReturn, // After-tax weighted return
       taxDrag: taxDrag,
       avgIncomeGrowth,
       totalIncome: Math.round(totalIncome),
@@ -300,11 +388,19 @@ export function projectFutureWealth(
     savingsRate = 0.25,
     annualReturn = 0.07,
     currentNetWorth,
+    taxDrag = 0.15,
+    targetAllocation = { cashPercent: 0.20, investmentPercent: 0.70, otherPercent: 0.10 },
   } = input;
 
-  const effectiveReturn = scenario?.annualReturn ?? annualReturn;
+  const baseReturn = scenario?.annualReturn ?? annualReturn;
   const effectiveSavingsRate = savingsRate * (scenario?.savingsRateModifier ?? 1);
   const levelBoost = scenario?.levelProgressionBoost ?? 0;
+
+  // Calculate weighted portfolio return based on asset allocation (for display)
+  const portfolioReturn =
+    (targetAllocation.cashPercent * CASH_RETURN) +
+    (targetAllocation.investmentPercent * baseReturn) +
+    (targetAllocation.otherPercent * OTHER_RETURN);
 
   let accumulatedWealth = currentNetWorth ?? modelExpectedWealth(input).expectedNetWorth;
 
@@ -323,13 +419,35 @@ export function projectFutureWealth(
     const income = wageEstimate.afterTaxComp;
     const annualSavings = Math.round(income * effectiveSavingsRate);
 
-    const investmentGrowth = Math.round(accumulatedWealth * effectiveReturn);
+    // P1-1: Weighted Asset Returns - Calculate growth per asset bucket
+    // 1. Decompose wealth based on target allocation
+    const cashAmount = accumulatedWealth * targetAllocation.cashPercent;
+    const investAmount = accumulatedWealth * targetAllocation.investmentPercent;
+    const otherAmount = accumulatedWealth * targetAllocation.otherPercent;
+
+    // 2. Calculate growth per bucket
+    const cashGrowth = cashAmount * REAL_RETURN_CASH;
+    const otherGrowth = otherAmount * REAL_RETURN_OTHER;
+
+    // 3. Investment growth with tax treatment
+    let investGrowth: number;
+    if (targetAllocation.taxTreatment) {
+      const rawInvestGrowth = investAmount * baseReturn;
+      const taxableGrowth = rawInvestGrowth * targetAllocation.taxTreatment.taxablePercent * (1 - taxDrag);
+      const taxAdvantageGrowth = rawInvestGrowth * targetAllocation.taxTreatment.taxAdvantagePercent;
+      investGrowth = taxableGrowth + taxAdvantageGrowth;
+    } else {
+      investGrowth = investAmount * baseReturn * (1 - taxDrag);
+    }
+
+    // 4. Aggregate
+    const yearGrowth = Math.round(cashGrowth + investGrowth + otherGrowth);
 
     if (age > currentAge) {
-      accumulatedWealth += annualSavings + investmentGrowth;
+      accumulatedWealth += annualSavings + yearGrowth;
       totalIncome += income;
       totalSavings += annualSavings;
-      totalInvestmentGrowth += investmentGrowth;
+      totalInvestmentGrowth += yearGrowth;
     }
 
     yearByYear.push({
@@ -337,7 +455,7 @@ export function projectFutureWealth(
       expectedNW: Math.round(accumulatedWealth),
       income: wageEstimate.totalComp,
       savings: annualSavings,
-      investmentGrowth: age > currentAge ? investmentGrowth : 0,
+      investmentGrowth: age > currentAge ? yearGrowth : 0,
       level: currentLevel,
     });
   }
@@ -351,13 +469,37 @@ export function projectFutureWealth(
     ? Math.pow(lastYearIncome / firstYearIncome, 1 / (years - 1)) - 1
     : 0;
 
+  // Calculate effective return (weighted, after-tax) for display
+  // Tax drag only applies to investments, not cash or other assets
+  let displayEffectiveReturn: number;
+  if (targetAllocation.taxTreatment) {
+    const investEffectiveReturn = baseReturn * (
+      targetAllocation.taxTreatment.taxablePercent * (1 - taxDrag) +
+      targetAllocation.taxTreatment.taxAdvantagePercent
+    );
+    displayEffectiveReturn =
+      (targetAllocation.cashPercent * REAL_RETURN_CASH) +
+      (targetAllocation.investmentPercent * investEffectiveReturn) +
+      (targetAllocation.otherPercent * REAL_RETURN_OTHER);
+  } else {
+    // Legacy: apply tax drag only to investment portion
+    const investAfterTax = baseReturn * (1 - taxDrag);
+    displayEffectiveReturn =
+      (targetAllocation.cashPercent * REAL_RETURN_CASH) +
+      (targetAllocation.investmentPercent * investAfterTax) +
+      (targetAllocation.otherPercent * REAL_RETURN_OTHER);
+  }
+
   return {
     expectedNetWorth: Math.round(accumulatedWealth),
     yearByYear,
     scfPercentile,
     assumptions: {
       avgSavingsRate: effectiveSavingsRate,
-      avgReturn: effectiveReturn,
+      avgReturn: baseReturn,
+      portfolioReturn: portfolioReturn,
+      effectiveReturn: displayEffectiveReturn,
+      taxDrag: taxDrag,
       avgIncomeGrowth,
       totalIncome: Math.round(totalIncome),
       totalSavings: Math.round(totalSavings),

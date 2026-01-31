@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Play, BarChart3 } from "lucide-react";
 import { runMonteCarloSimulation, createSimulationConfig, type AggregatedResults } from "@/lib/monte-carlo";
+import { useMonteCarloWorker } from "@/hooks/use-monte-carlo-worker";
 
 interface MonteCarloRunnerProps {
   currentNetWorth: number;
@@ -32,37 +33,49 @@ export function MonteCarloRunner({
   onResults,
 }: MonteCarloRunnerProps) {
   const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [riskProfile, setRiskProfile] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
   const [numSimulations, setNumSimulations] = useState(10000);
   const [timeHorizon, setTimeHorizon] = useState(120); // 10 years in months
 
+  const { runSimulation: runWorkerSimulation, isWorkerSupported } = useMonteCarloWorker();
+
   const runSimulation = async () => {
     setIsRunning(true);
+    setProgress(0);
 
-    // Run in setTimeout to allow UI to update
-    setTimeout(() => {
-      try {
-        const config = createSimulationConfig({
-          currentNetWorth,
-          currentCash,
-          monthlyIncome,
-          monthlyExpenses,
-          savingsRate,
-          riskProfile,
-        });
+    try {
+      const config = createSimulationConfig({
+        currentNetWorth,
+        currentCash,
+        monthlyIncome,
+        monthlyExpenses,
+        savingsRate,
+        riskProfile,
+      });
 
-        // Override with user selections
-        config.numSimulations = numSimulations;
-        config.timeHorizonMonths = timeHorizon;
+      // Override with user selections
+      config.numSimulations = numSimulations;
+      config.timeHorizonMonths = timeHorizon;
 
-        const results = runMonteCarloSimulation(config);
-        onResults(results);
-      } catch (error) {
-        console.error("Simulation error:", error);
-      } finally {
-        setIsRunning(false);
+      let results: AggregatedResults;
+
+      if (isWorkerSupported) {
+        // Use Web Worker (non-blocking)
+        results = await runWorkerSimulation(config, setProgress);
+      } else {
+        // Fallback to synchronous (blocking)
+        console.warn('Web Workers not supported, running on main thread');
+        results = runMonteCarloSimulation(config);
       }
-    }, 100);
+
+      onResults(results);
+    } catch (error) {
+      console.error("Simulation error:", error);
+    } finally {
+      setIsRunning(false);
+      setProgress(0);
+    }
   };
 
   return (
@@ -143,6 +156,22 @@ export function MonteCarloRunner({
           />
         </div>
 
+        {/* Progress indicator */}
+        {isRunning && progress > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span>Progress</span>
+              <span className="font-mono">{Math.round(progress * 100)}%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Current State Summary */}
         <div className="grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-lg">
           <div>
@@ -183,9 +212,16 @@ export function MonteCarloRunner({
           )}
         </Button>
 
-        <p className="text-xs text-muted-foreground text-center">
-          Simulation includes: investment returns with volatility, expense variations, income fluctuations, and emergency events
-        </p>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground text-center">
+            Simulation includes: investment returns with volatility, expense variations, income fluctuations, and emergency events
+          </p>
+          {!isWorkerSupported && (
+            <p className="text-xs text-amber-600 text-center">
+              Note: Web Workers not supported. UI may freeze briefly during simulation.
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -6,13 +6,18 @@
  * - Emergency event simulation (Poisson process)
  * - Risk metrics (VaR, CVaR)
  * - Statistical analysis (percentiles, confidence intervals)
+ *
+ * Note: Type definitions are also exported from monte-carlo.types.ts for use in web workers
  */
+
+import { REAL_RETURN_CASH, REAL_RETURN_OTHER } from '../config/constants';
 
 export interface SimulationConfig {
   // Current state
   currentNetWorth: number;
   currentCash: number;
   currentInvestments: number;
+  currentOther?: number; // Other assets (vehicles, etc.) that don't grow
 
   // Income and expenses
   monthlyIncome: number;
@@ -38,6 +43,13 @@ export interface SimulationConfig {
 
   // Optional
   inflationRate?: number; // Annual inflation rate
+
+  // Tax treatment
+  taxTreatment?: {
+    taxablePercent: number;      // e.g., 0.30 for 30% in taxable accounts
+    taxAdvantagePercent: number; // e.g., 0.70 for 70% in 401k/IRA
+  };
+  taxRate?: number; // Default 0.15 (15% LTCG)
 }
 
 export interface SimulationResult {
@@ -159,12 +171,17 @@ function simulateSinglePath(config: SimulationConfig, seed: number): SimulationR
 
   let cash = currentCash;
   let investments = currentInvestments;
+  let other = config.currentOther || 0;
   let netWorth = currentNetWorth;
 
   const monthlyBalances: number[] = [cash];
   const monthlyNetWorth: number[] = [netWorth];
   let emergencyCount = 0;
   let monthsOfRunway = timeHorizonMonths;
+
+  // Monthly return rates (annual rates / 12)
+  const monthlyCashReturn = REAL_RETURN_CASH / 12;
+  const monthlyOtherReturn = REAL_RETURN_OTHER / 12;
 
   for (let month = 1; month <= timeHorizonMonths; month++) {
     // 1. Income (with volatility)
@@ -182,12 +199,33 @@ function simulateSinglePath(config: SimulationConfig, seed: number): SimulationR
       emergencyCount++;
     }
 
-    // 4. Investment returns (Geometric Brownian Motion)
-    const investmentMultiplier = simulateInvestmentReturn(
+    // 4a. Cash growth (P1-1: Weighted Asset Returns)
+    cash = cash * (1 + monthlyCashReturn);
+
+    // 4b. Investment returns (Geometric Brownian Motion) with tax treatment
+    const rawReturnMultiplier = simulateInvestmentReturn(
       investmentReturnAnnual,
       investmentVolatilityAnnual
     );
-    investments = investments * investmentMultiplier;
+
+    // Apply tax treatment if specified
+    if (config.taxTreatment && config.taxRate !== undefined) {
+      // Calculate growth from this period
+      const rawGrowth = investments * (rawReturnMultiplier - 1);
+
+      // Split growth by tax treatment
+      const taxableGrowth = rawGrowth * config.taxTreatment.taxablePercent * (1 - config.taxRate);
+      const taxAdvantageGrowth = rawGrowth * config.taxTreatment.taxAdvantagePercent;
+
+      // Apply after-tax growth
+      investments = investments + taxableGrowth + taxAdvantageGrowth;
+    } else {
+      // Legacy: no tax treatment, apply raw return
+      investments = investments * rawReturnMultiplier;
+    }
+
+    // 4c. Other assets growth (typically 0% or depreciating)
+    other = other * (1 + monthlyOtherReturn);
 
     // 5. Cash flow
     const savings = actualIncome * savingsRate;
@@ -220,7 +258,7 @@ function simulateSinglePath(config: SimulationConfig, seed: number): SimulationR
       investments += amountToInvest;
     }
 
-    netWorth = cash + investments;
+    netWorth = cash + investments + other;
     monthlyBalances.push(cash);
     monthlyNetWorth.push(netWorth);
 
@@ -479,8 +517,12 @@ export function createSimulationConfig(params: {
   monthlyExpenses: number;
   savingsRate: number;
   riskProfile?: 'conservative' | 'moderate' | 'aggressive';
+  taxTreatment?: {
+    taxablePercent: number;
+    taxAdvantagePercent: number;
+  };
 }): SimulationConfig {
-  const { currentNetWorth, currentCash, monthlyIncome, monthlyExpenses, savingsRate, riskProfile = 'moderate' } = params;
+  const { currentNetWorth, currentCash, monthlyIncome, monthlyExpenses, savingsRate, riskProfile = 'moderate', taxTreatment } = params;
 
   const currentInvestments = currentNetWorth - currentCash;
 
@@ -528,5 +570,7 @@ export function createSimulationConfig(params: {
     numSimulations: 10000,
     timeHorizonMonths: 120, // 10 years
     inflationRate: 0.03,
+    taxTreatment: taxTreatment,
+    taxRate: 0.15, // 15% LTCG
   };
 }

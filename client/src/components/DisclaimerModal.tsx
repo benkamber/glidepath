@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const DISCLAIMER_KEY = "hasAcceptedDisclaimer";
+const DISCLAIMER_KEY = "legal_accepted"; // P1-3: Liability Shield
 
 export function DisclaimerModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -96,8 +96,9 @@ export function DisclaimerModal() {
             onClick={handleAccept}
             disabled={!hasReadDisclaimer}
             className="w-full sm:w-auto"
+            size="lg"
           >
-            I Understand - Continue
+            Enter Glidepath
           </Button>
         </DialogFooter>
       </DialogContent>
