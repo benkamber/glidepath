@@ -68,7 +68,10 @@ export function DeviationAlert({ entries }: DeviationAlertProps) {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-2 bg-secondary/30 rounded">
-                <p className="text-muted-foreground mb-0.5">Expected</p>
+                <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
+                  Expected (Your Trend)
+                  <Info className="h-3 w-3" title="Based on linear regression of your historical net worth growth" />
+                </p>
                 <p className="font-mono font-semibold text-foreground">
                   {formatCurrency(deviation.expectedValue)}
                 </p>
@@ -127,7 +130,7 @@ export function DeviationAlert({ entries }: DeviationAlertProps) {
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border/50">
               <Info className="h-3 w-3" />
               <span>
-                Analysis confidence: {deviation.confidence}% | Based on {entries.length}{" "}
+                Trend confidence: {deviation.confidence}% | Based on linear regression of your {entries.length}{" "}
                 data points
               </span>
             </div>

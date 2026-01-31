@@ -156,7 +156,26 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
 
           {/* Delta */}
           <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">vs. expected</p>
+            <div className="flex items-center justify-center gap-1">
+              <p className="text-sm text-muted-foreground">vs. expected</p>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-3 w-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="mb-2 font-semibold">What we're comparing:</p>
+                  <ul className="text-xs space-y-1">
+                    <li>• <strong>Age:</strong> {profile.age} years old ({profile.yearsInWorkforce} years working)</li>
+                    <li>• <strong>Occupation:</strong> {profile.level.replace('_', ' ')} {profile.occupation.replace('_', ' ')}</li>
+                    <li>• <strong>Location:</strong> {profile.metro.replace('_', ' ')}</li>
+                    <li>• <strong>Savings Rate:</strong> {Math.round((profile.savingsRate || 0.25) * 100)}% of income</li>
+                  </ul>
+                  <p className="text-xs mt-2 pt-2 border-t">
+                    Expected value uses BLS wage data + historical market returns (7% real) to model your wealth trajectory.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="flex items-center justify-center gap-2">
               {Math.abs(deltaPercent) < 0.05 ? (
                 <Minus className="h-6 w-6 text-muted-foreground" />
@@ -179,6 +198,9 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
             </div>
             <p className="text-xs text-muted-foreground">
               {getComparisonDescription(comparison)}
+            </p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              for {profile.level.replace('_', ' ')} {profile.occupation.replace('_', ' ')} in {profile.metro.replace('_', ' ')}
             </p>
           </div>
         </div>

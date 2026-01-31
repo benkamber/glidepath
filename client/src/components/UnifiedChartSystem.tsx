@@ -150,8 +150,9 @@ export function UnifiedChartSystem({
     return filteredEntries.map(entry => {
       const entryDate = new Date(entry.date);
       const data: any = {
-        date: entryDate.getFullYear().toString(), // Show full year for better trendline visibility
+        date: `${entryDate.getMonth() + 1}/${entryDate.getFullYear()}`, // Format as MM/YYYY to avoid duplicates
         fullDate: entry.date,
+        timestamp: entryDate.getTime(), // For sorting
       };
 
       if (activeLayers.includes('netWorth')) {
@@ -215,10 +216,17 @@ export function UnifiedChartSystem({
           futureDate.setFullYear(futureDate.getFullYear() + i + 1);
 
           const dataPoint: any = {
-            date: futureDate.getFullYear().toString(), // Match main data format
+            date: `${futureDate.getMonth() + 1}/${futureDate.getFullYear()}`, // Match main data format
             fullDate: futureDate.toISOString(),
+            timestamp: futureDate.getTime(),
             projection: proj.expectedNW,
             projectionIncome: proj.income,
+            // Set historical data to null so Recharts doesn't drop to zero
+            netWorth: null,
+            cash: null,
+            investment: null,
+            other: null,
+            liabilities: null,
           };
 
           // Add Monte Carlo percentiles if available
@@ -413,6 +421,18 @@ export function UnifiedChartSystem({
                 dataKey="date"
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
+                interval="preserveStartEnd"
+                angle={-45}
+                textAnchor="end"
+                height={60}
+                tickFormatter={(value) => {
+                  // Show only year if we have many data points
+                  const parts = value.split('/');
+                  if (parts.length === 2) {
+                    return enrichedChartData.length > 24 ? parts[1] : value;
+                  }
+                  return value;
+                }}
               />
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
@@ -438,6 +458,7 @@ export function UnifiedChartSystem({
                   strokeWidth={2}
                   dot={false}
                   name="Net Worth"
+                  connectNulls={false}
                 />
               )}
               {activeLayers.includes('cash') && (
@@ -448,6 +469,7 @@ export function UnifiedChartSystem({
                   strokeWidth={2}
                   dot={false}
                   name="Cash"
+                  connectNulls={false}
                 />
               )}
               {activeLayers.includes('investment') && (
@@ -458,6 +480,7 @@ export function UnifiedChartSystem({
                   strokeWidth={2}
                   dot={false}
                   name="Investment"
+                  connectNulls={false}
                 />
               )}
 

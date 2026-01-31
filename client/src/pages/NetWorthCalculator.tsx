@@ -62,6 +62,7 @@ import { getWageEstimate } from "@/data/bls-wage-data";
 import { inferSavingsRate, projectFutureWealth, projectionScenarios } from "@/models/wealth-model";
 import { wealthByAge, getBracketForAge } from "@/data/scf-data";
 import { calculateAssetSplit } from "@/lib/asset-allocation";
+import { calculateFIRENumber, FIRE_LEVELS, getFIRELevel } from "@/lib/fire-calculations";
 
 // New analysis components
 import { VelocityChart } from "@/components/VelocityChart";
@@ -826,6 +827,7 @@ export default function NetWorthCalculator() {
           onProfileChange={updateProfile}
           onInitialize={initializeProfile}
           isComplete={isProfileComplete}
+          totalNetWorth={latestEntry?.totalNetWorth}
         />
 
         {/* Percentile Context - prominent "am I on track?" feedback */}
@@ -1077,6 +1079,34 @@ export default function NetWorthCalculator() {
 
         {/* Unified Chart System - New Advanced Visualization */}
         {entries.length >= 2 && profile && latestEntry && (() => {
+          // Calculate FIRE thresholds dynamically based on user's spending
+          const monthlySpending = profile.targetRetirementSpending || profile.monthlyExpenses || 5000;
+          const annualExpenses = monthlySpending * 12;
+
+          // Calculate FIRE number for each level using their specific withdrawal rates
+          const fireThresholds = FIRE_LEVELS.map(level => ({
+            name: level.name,
+            amount: calculateFIRENumber(
+              // Use user's actual expenses if within this level's range, otherwise use midpoint
+              annualExpenses >= level.minAnnualExpenses && annualExpenses < level.maxAnnualExpenses
+                ? annualExpenses
+                : (level.minAnnualExpenses + Math.min(level.maxAnnualExpenses, level.minAnnualExpenses * 2)) / 2,
+              level.withdrawalRate
+            ),
+            color: level.color,
+          }));
+
+          // Add user's personal FIRE target if they have expenses defined
+          if (profile.monthlyExpenses || profile.targetRetirementSpending) {
+            const userLevel = getFIRELevel(annualExpenses);
+            const personalFIRE = {
+              name: `Your ${userLevel.name}`,
+              amount: calculateFIRENumber(annualExpenses, userLevel.withdrawalRate),
+              color: "#8b5cf6", // purple - stands out
+            };
+            fireThresholds.push(personalFIRE);
+          }
+
           // Generate percentile bands for peer comparison
           const percentileData = Array.from({ length: 80 }, (_, i) => {
             const age = 18 + i; // Ages 18-97
@@ -1103,12 +1133,7 @@ export default function NetWorthCalculator() {
             }))}
             monteCarloData={monteCarloChartData || monteCarloNetWorth || undefined}
             profileProjection={wealthProjection}
-            fireThresholds={[
-              { name: "Lean FIRE", amount: 1000000, color: "#fbbf24" },
-              { name: "Regular FIRE", amount: 1500000, color: "#10b981" },
-              { name: "Chubby FIRE", amount: 2500000, color: "#6366f1" },
-              { name: "Fat FIRE", amount: 4000000, color: "#f59e0b" },
-            ]}
+            fireThresholds={fireThresholds}
             percentileData={percentileData}
             currentAge={profile?.age}
             projectionHorizonYears={projectionHorizonYears}

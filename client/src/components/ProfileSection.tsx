@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { LogarithmicSliderInput } from '@/components/ui/logarithmic-slider-input';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ interface ProfileSectionProps {
   onProfileChange: (updates: Partial<UserProfile>) => void;
   onInitialize: () => void;
   isComplete: boolean;
+  totalNetWorth?: number; // For showing dollar amounts in allocation sliders
 }
 
 export function ProfileSection({
@@ -37,6 +39,7 @@ export function ProfileSection({
   onProfileChange,
   onInitialize,
   isComplete,
+  totalNetWorth,
 }: ProfileSectionProps) {
   // Default to expanded if profile is incomplete, collapsed if complete
   const [isExpanded, setIsExpanded] = useState(!isComplete);
@@ -212,52 +215,34 @@ export function ProfileSection({
           </div>
 
           {/* Total Compensation */}
-          <div className="space-y-2">
-            <Label htmlFor="totalComp" className="flex items-center gap-2">
-              💰 Annual Total Compensation (Optional - Leave Blank if Unemployed/Laid Off)
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-              <Input
-                id="totalComp"
-                type="number"
-                step="1000"
-                placeholder={`Default: ${profile?.occupation && profile?.level && profile?.metro
-                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
-                      getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp
-                    )
-                  : 'Based on BLS data'}`}
-                value={profile?.totalCompensation ?? ''}
-                onChange={(e) => onProfileChange({ totalCompensation: e.target.value ? parseFloat(e.target.value) : undefined })}
-                className="pl-7"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <strong>Only needed if currently employed.</strong> Include ALL comp: base + bonus + equity + benefits. Used for geographic arbitrage & future projections. Leave blank if laid off/between jobs - we'll infer savings from your historical net worth growth instead.
-            </p>
-          </div>
+          <LogarithmicSliderInput
+            id="totalComp"
+            label="Annual Total Compensation (Optional - Leave Blank if Unemployed/Laid Off)"
+            icon="💰"
+            value={profile?.totalCompensation}
+            onChange={(value) => onProfileChange({ totalCompensation: value })}
+            min={10000}
+            max={20000000}
+            placeholder={profile?.occupation && profile?.level && profile?.metro
+              ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(
+                  getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp
+                )
+              : 'Based on BLS'}
+            description="Only needed if currently employed. Include ALL comp: base + bonus + equity + benefits. Used for geographic arbitrage & future projections. Leave blank if laid off/between jobs - we'll infer savings from your historical net worth growth instead."
+          />
 
           {/* Monthly Expenses for FIRE Planning */}
-          <div className="space-y-2">
-            <Label htmlFor="monthlyExpenses" className="flex items-center gap-2">
-              💳 Monthly Expenses (Optional - for FIRE Planning)
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-              <Input
-                id="monthlyExpenses"
-                type="number"
-                step="100"
-                placeholder="e.g., 5000"
-                value={profile?.monthlyExpenses ?? ''}
-                onChange={(e) => onProfileChange({ monthlyExpenses: e.target.value ? parseFloat(e.target.value) : undefined })}
-                className="pl-7"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <strong>Used for FIRE calculations & retirement planning.</strong> Include all regular expenses: housing, food, transportation, insurance, entertainment. Excludes savings/investments. Helps calculate safe withdrawal rate and years to financial independence.
-            </p>
-          </div>
+          <LogarithmicSliderInput
+            id="monthlyExpenses"
+            label="Monthly Expenses (Optional - for FIRE Planning)"
+            icon="💳"
+            value={profile?.monthlyExpenses}
+            onChange={(value) => onProfileChange({ monthlyExpenses: value })}
+            min={500}
+            max={100000}
+            placeholder="e.g., 5,000"
+            description="Used for FIRE calculations & retirement planning. Include all regular expenses: housing, food, transportation, insurance, entertainment. Excludes savings/investments. Helps calculate safe withdrawal rate and years to financial independence."
+          />
 
           {/* Retirement Planning Goals */}
           <div className="grid grid-cols-2 gap-4">
@@ -279,26 +264,30 @@ export function ProfileSection({
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="retirementSpending" className="flex items-center gap-2">
-                🏖️ Retirement Monthly Spending (Optional)
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  id="retirementSpending"
-                  type="number"
-                  step="100"
-                  placeholder={profile?.monthlyExpenses ? `Default: ${profile.monthlyExpenses}` : 'e.g., 4000'}
-                  value={profile?.targetRetirementSpending ?? ''}
-                  onChange={(e) => onProfileChange({ targetRetirementSpending: e.target.value ? parseFloat(e.target.value) : undefined })}
-                  className="pl-7"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Expected spending in retirement. Defaults to current expenses if blank.
-              </p>
-            </div>
+            <LogarithmicSliderInput
+              id="retirementSpending"
+              label="Retirement Monthly Spending (Optional)"
+              icon="🏖️"
+              value={profile?.targetRetirementSpending}
+              onChange={(value) => onProfileChange({ targetRetirementSpending: value })}
+              min={500}
+              max={100000}
+              placeholder={profile?.monthlyExpenses ? `Default: ${profile.monthlyExpenses}` : 'e.g., 4,000'}
+              description="Expected spending in retirement. Defaults to current expenses if blank."
+              tooltip={
+                <div className="space-y-2">
+                  <p className="font-semibold">How this is used in FIRE calculations:</p>
+                  <ul className="text-xs space-y-1">
+                    <li>• <strong>4% Rule:</strong> Your FIRE target = Monthly Spending × 12 × 25</li>
+                    <li>• <strong>Safe Withdrawal Rate:</strong> You can safely withdraw 4% per year in retirement</li>
+                    <li>• <strong>Example:</strong> $5,000/mo spending = $1.5M FIRE target ($60k/year ÷ 4%)</li>
+                  </ul>
+                  <p className="text-xs pt-2 border-t">
+                    This determines when you achieve financial independence and can retire safely.
+                  </p>
+                </div>
+              }
+            />
           </div>
 
           {/* Savings Rate - REMOVED: Now inferred from historical data */}
@@ -320,15 +309,22 @@ export function ProfileSection({
                 <Label htmlFor="cash-percent" className="text-sm">
                   💵 Cash & Equivalents
                 </Label>
-                <span className="text-sm font-medium">
-                  {Math.round((profile?.targetAllocation?.cashPercent ?? 0.20) * 100)}%
-                </span>
+                <div className="text-sm font-medium flex flex-col items-end">
+                  <span>
+                    {((profile?.targetAllocation?.cashPercent ?? 0.20) * 100).toFixed(1)}%
+                  </span>
+                  {totalNetWorth && (
+                    <span className="text-xs text-muted-foreground">
+                      ≈ ${((profile?.targetAllocation?.cashPercent ?? 0.20) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
               </div>
               <Slider
                 id="cash-percent"
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 value={[(profile?.targetAllocation?.cashPercent ?? 0.20) * 100]}
                 onValueChange={([value]) => {
                   const newAllocation: TargetAllocation = {
@@ -351,15 +347,22 @@ export function ProfileSection({
                 <Label htmlFor="investment-percent" className="text-sm">
                   📈 Market Investments
                 </Label>
-                <span className="text-sm font-medium">
-                  {Math.round((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100)}%
-                </span>
+                <div className="text-sm font-medium flex flex-col items-end">
+                  <span>
+                    {((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100).toFixed(1)}%
+                  </span>
+                  {totalNetWorth && (
+                    <span className="text-xs text-muted-foreground">
+                      ≈ ${((profile?.targetAllocation?.investmentPercent ?? 0.70) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
               </div>
               <Slider
                 id="investment-percent"
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 value={[(profile?.targetAllocation?.investmentPercent ?? 0.70) * 100]}
                 onValueChange={([value]) => {
                   const newAllocation: TargetAllocation = {
@@ -382,15 +385,22 @@ export function ProfileSection({
                 <Label htmlFor="other-percent" className="text-sm">
                   🏠 Other Assets
                 </Label>
-                <span className="text-sm font-medium">
-                  {Math.round((profile?.targetAllocation?.otherPercent ?? 0.10) * 100)}%
-                </span>
+                <div className="text-sm font-medium flex flex-col items-end">
+                  <span>
+                    {((profile?.targetAllocation?.otherPercent ?? 0.10) * 100).toFixed(1)}%
+                  </span>
+                  {totalNetWorth && (
+                    <span className="text-xs text-muted-foreground">
+                      ≈ ${((profile?.targetAllocation?.otherPercent ?? 0.10) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
               </div>
               <Slider
                 id="other-percent"
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 value={[(profile?.targetAllocation?.otherPercent ?? 0.10) * 100]}
                 onValueChange={([value]) => {
                   const newAllocation: TargetAllocation = {

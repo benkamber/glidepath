@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { LogarithmicSliderInput } from '@/components/ui/logarithmic-slider-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Plane, TrendingDown, AlertTriangle, CheckCircle, Info } from 'lucide-react';
@@ -153,48 +154,36 @@ export function RunwayAnalysis({
 
             {/* Monthly Burn */}
             <div className="space-y-2">
-              <Label htmlFor="monthlyBurn" className="flex items-center gap-2">
-                💳 Monthly Spending
-                {inferredBurn > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    Inferred from history: {formatCurrency(inferredBurn)}
-                  </Badge>
-                )}
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  id="monthlyBurn"
-                  type="number"
-                  step="100"
-                  value={monthlyBurn}
-                  onChange={(e) => setMonthlyBurn(parseInt(e.target.value) || 0)}
-                  className="pl-7"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                All monthly expenses: rent, food, travel, entertainment, etc.
-              </p>
+              {inferredBurn > 0 && (
+                <Badge variant="secondary" className="text-xs mb-2">
+                  Inferred from history: {formatCurrency(inferredBurn)}
+                </Badge>
+              )}
+              <LogarithmicSliderInput
+                id="monthlyBurn"
+                label="Monthly Spending"
+                icon="💳"
+                value={monthlyBurn}
+                onChange={(value) => setMonthlyBurn(value || 0)}
+                min={500}
+                max={100000}
+                placeholder="e.g., 5,000"
+                description="All monthly expenses: rent, food, travel, entertainment, etc."
+              />
             </div>
 
             {/* Monthly Income */}
-            <div className="space-y-2">
-              <Label htmlFor="monthlyIncome">💰 Ongoing Monthly Income (Optional)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  id="monthlyIncome"
-                  type="number"
-                  step="100"
-                  value={monthlyIncome}
-                  onChange={(e) => setMonthlyIncome(parseInt(e.target.value) || 0)}
-                  className="pl-7"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Passive income, part-time work, freelancing, dividends, etc. Leave 0 if taking a complete break.
-              </p>
-            </div>
+            <LogarithmicSliderInput
+              id="monthlyIncome"
+              label="Ongoing Monthly Income (Optional)"
+              icon="💰"
+              value={monthlyIncome || undefined}
+              onChange={(value) => setMonthlyIncome(value || 0)}
+              min={100}
+              max={500000}
+              placeholder="e.g., 2,000"
+              description="Passive income, part-time work, freelancing, dividends, etc. Leave 0 if taking a complete break."
+            />
 
             {/* Annual Return Rate */}
             <div className="space-y-2">
