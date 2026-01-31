@@ -14,6 +14,7 @@ import {
   Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { debugLog, debugGroup, debugCurrency } from '@/lib/debug-logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -147,26 +148,44 @@ export function UnifiedChartSystem({
 
   // Prepare chart data
   const chartData = useMemo(() => {
-    return filteredEntries.map(entry => {
+    const data = filteredEntries.map(entry => {
       const entryDate = new Date(entry.date);
-      const data: any = {
+      const chartPoint: any = {
         date: `${entryDate.getMonth() + 1}/${entryDate.getFullYear()}`, // Format as MM/YYYY to avoid duplicates
         fullDate: entry.date,
         timestamp: entryDate.getTime(), // For sorting
       };
 
       if (activeLayers.includes('netWorth')) {
-        data.netWorth = entry.totalNetWorth;
+        chartPoint.netWorth = entry.totalNetWorth;
       }
       if (activeLayers.includes('cash')) {
-        data.cash = entry.cash;
+        chartPoint.cash = entry.cash;
       }
       if (activeLayers.includes('investment')) {
-        data.investment = entry.investment || (entry.totalNetWorth - entry.cash);
+        chartPoint.investment = entry.investment || (entry.totalNetWorth - entry.cash);
       }
 
-      return data;
+      return chartPoint;
     });
+
+    debugGroup("CHART_DATA", "Prepared chart data", () => {
+      debugLog("CHART_DATA", `Total data points: ${data.length}`);
+      if (data.length > 0) {
+        debugLog("CHART_DATA", "First point:", {
+          date: data[0].date,
+          fullDate: data[0].fullDate,
+          netWorth: data[0].netWorth ? debugCurrency(data[0].netWorth) : 'N/A',
+        });
+        debugLog("CHART_DATA", "Last point:", {
+          date: data[data.length - 1].date,
+          fullDate: data[data.length - 1].fullDate,
+          netWorth: data[data.length - 1].netWorth ? debugCurrency(data[data.length - 1].netWorth) : 'N/A',
+        });
+      }
+    });
+
+    return data;
   }, [filteredEntries, activeLayers]);
 
   // Add lens-specific data overlays

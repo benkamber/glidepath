@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, CheckCircle, AlertCircle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseFlexibleDate } from "@/lib/date-parser";
+import { debugLog, debugTable, debugGroup, debugCurrency } from "@/lib/debug-logger";
 
 interface ParsedEntry {
   date: string;
@@ -44,9 +45,16 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
       return;
     }
 
+    debugGroup("DATA_IMPORT", "Starting data parse", () => {
+      debugLog("DATA_IMPORT", `Total characters: ${rawData.length}`);
+      debugLog("DATA_IMPORT", `First 200 chars: ${rawData.substring(0, 200)}`);
+    });
+
     setError(null);
     const entries: ParsedEntry[] = [];
     const lines = rawData.split("\n").filter(line => line.trim());
+
+    debugLog("DATA_IMPORT", `Total lines (after filtering empty): ${lines.length}`);
 
     // Detect delimiter (tab, comma, pipe, or multiple spaces)
     const firstLine = lines[0];
@@ -125,19 +133,39 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
         // If we found valid data, add entry
         if (date && netWorth !== null && cash !== null) {
-          entries.push({
+          const entry = {
             date,
             totalNetWorth: Math.round(netWorth),
             cash: Math.round(cash),
             investment: investment !== null ? Math.round(investment) : undefined,
             source: "imported",
+          };
+          entries.push(entry);
+
+          // Debug log first 5 and last 5 entries
+          if (entries.length <= 5 || entries.length % 100 === 0) {
+            debugLog("DATA_IMPORT", `Parsed entry #${entries.length}`, {
+              rawLine: line.substring(0, 100),
+              parsed: {
+                date: entry.date,
+                totalNetWorth: debugCurrency(entry.totalNetWorth),
+                cash: debugCurrency(entry.cash),
+              }
+            });
+          }
+        } else {
+          debugLog("DATA_IMPORT", `Skipped invalid line: ${line.substring(0, 100)}`, {
+            date, netWorth, cash
           });
         }
       } catch (err) {
         console.warn("Failed to parse line:", line, err);
+        debugLog("DATA_IMPORT", `Parse error on line: ${line.substring(0, 100)}`, err);
         // Continue with next line
       }
     }
+
+    debugLog("DATA_IMPORT", `Total entries parsed: ${entries.length}`);
 
     if (entries.length === 0) {
       setError(
@@ -153,6 +181,22 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
     // Sort by date
     entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    debugGroup("DATA_IMPORT", "Parsed entries summary", () => {
+      debugLog("DATA_IMPORT", `Total entries: ${entries.length}`);
+      debugLog("DATA_IMPORT", "First 3 entries:", entries.slice(0, 3).map(e => ({
+        date: e.date,
+        netWorth: debugCurrency(e.totalNetWorth),
+        cash: debugCurrency(e.cash),
+      })));
+      debugLog("DATA_IMPORT", "Last 3 entries:", entries.slice(-3).map(e => ({
+        date: e.date,
+        netWorth: debugCurrency(e.totalNetWorth),
+        cash: debugCurrency(e.cash),
+      })));
+      const latestEntry = entries[entries.length - 1];
+      debugLog("DATA_IMPORT", `LATEST ENTRY: ${latestEntry.date} - Net Worth: ${debugCurrency(latestEntry.totalNetWorth)}, Cash: ${debugCurrency(latestEntry.cash)}`);
+    });
 
     setParsedEntries(entries);
     toast({

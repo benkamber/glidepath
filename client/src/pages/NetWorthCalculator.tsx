@@ -79,6 +79,7 @@ import { MonteCarloRunner } from "@/components/monte-carlo/MonteCarloRunner";
 import { MonteCarloResults } from "@/components/monte-carlo/MonteCarloResults";
 import type { AggregatedResults, MonteCarloChartData } from "@/lib/monte-carlo";
 import { transformForChart } from "@/lib/monte-carlo";
+import { DebugPanel } from "@/components/DebugPanel";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
@@ -86,6 +87,7 @@ import { exportData, importDataFromFile, shouldShowBackupReminder, markBackupRem
 import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, AlertTriangle } from "lucide-react";
+import { debugLog, debugTable, debugGroup, debugCurrency, DEBUG_ENABLED } from "@/lib/debug-logger";
 
 // Types
 interface Entry {
@@ -331,6 +333,19 @@ export default function NetWorthCalculator() {
     try {
       const stored = getItem<Entry[]>(STORAGE_KEY);
       if (stored) {
+        debugGroup("STORAGE_LOAD", "Loading entries from localStorage", () => {
+          debugLog("STORAGE_LOAD", `Loaded ${stored.length} entries`);
+          if (stored.length > 0) {
+            debugLog("STORAGE_LOAD", "First entry:", {
+              date: stored[0].date,
+              netWorth: debugCurrency(stored[0].totalNetWorth),
+            });
+            debugLog("STORAGE_LOAD", "Last entry:", {
+              date: stored[stored.length - 1].date,
+              netWorth: debugCurrency(stored[stored.length - 1].totalNetWorth),
+            });
+          }
+        });
         setEntries(stored);
       }
     } catch (error) {
@@ -383,16 +398,48 @@ export default function NetWorthCalculator() {
 
   // Sorted entries
   const sortedEntries = useMemo(
-    () =>
-      [...entries].sort(
+    () => {
+      const sorted = [...entries].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      ),
+      );
+
+      debugGroup("NET_WORTH_CALC", "Sorted Entries", () => {
+        debugLog("NET_WORTH_CALC", `Total entries: ${sorted.length}`);
+        if (sorted.length > 0) {
+          debugLog("NET_WORTH_CALC", "First 3:", sorted.slice(0, 3).map(e => ({
+            date: e.date,
+            netWorth: debugCurrency(e.totalNetWorth),
+          })));
+          debugLog("NET_WORTH_CALC", "Last 3:", sorted.slice(-3).map(e => ({
+            date: e.date,
+            netWorth: debugCurrency(e.totalNetWorth),
+          })));
+        }
+      });
+
+      return sorted;
+    },
     [entries]
   );
 
   // Latest entry
   const latestEntry = useMemo(
-    () => (sortedEntries.length > 0 ? sortedEntries[sortedEntries.length - 1] : null),
+    () => {
+      const latest = sortedEntries.length > 0 ? sortedEntries[sortedEntries.length - 1] : null;
+
+      debugGroup("NET_WORTH_CALC", "Latest Entry", () => {
+        if (latest) {
+          debugLog("NET_WORTH_CALC", `Date: ${latest.date}`);
+          debugLog("NET_WORTH_CALC", `Net Worth: ${debugCurrency(latest.totalNetWorth)}`);
+          debugLog("NET_WORTH_CALC", `Cash: ${debugCurrency(latest.cash)}`);
+          debugLog("NET_WORTH_CALC", `Investment: ${latest.investment ? debugCurrency(latest.investment) : 'calculated'}`);
+        } else {
+          debugLog("NET_WORTH_CALC", "No entries found");
+        }
+      });
+
+      return latest;
+    },
     [sortedEntries]
   );
 
@@ -1400,6 +1447,23 @@ export default function NetWorthCalculator() {
               cash: ie.cash,
               investment: ie.investment,
             }));
+
+            debugGroup("DATA_IMPORT", "Importing entries to main state", () => {
+              debugLog("DATA_IMPORT", `Importing ${newEntries.length} new entries`);
+              debugLog("DATA_IMPORT", `Existing entries: ${entries.length}`);
+              debugLog("DATA_IMPORT", `Total after import: ${entries.length + newEntries.length}`);
+              if (newEntries.length > 0) {
+                debugLog("DATA_IMPORT", "First new entry:", {
+                  date: newEntries[0].date,
+                  netWorth: debugCurrency(newEntries[0].totalNetWorth),
+                });
+                debugLog("DATA_IMPORT", "Last new entry:", {
+                  date: newEntries[newEntries.length - 1].date,
+                  netWorth: debugCurrency(newEntries[newEntries.length - 1].totalNetWorth),
+                });
+              }
+            });
+
             setEntries([...entries, ...newEntries]);
           }}
         />
@@ -1565,6 +1629,9 @@ export default function NetWorthCalculator() {
           </div>
         </div>
       </div>
+
+      {/* Debug Panel - Only shows when debug mode is enabled */}
+      <DebugPanel entries={entries} latestEntry={latestEntry} />
     </div>
   );
 }
