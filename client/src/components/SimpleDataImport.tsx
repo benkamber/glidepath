@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, CheckCircle, AlertCircle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseFlexibleDate } from "@/lib/date-parser";
-import { debugLog, debugTable, debugGroup, debugCurrency } from "@/lib/debug-logger";
+import { debugLog, debugTable, debugGroup, debugCurrency, debugCheckpoint } from "@/lib/debug-logger";
 
 interface ParsedEntry {
   date: string;
@@ -181,6 +181,8 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
     // Sort by date
     entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    debugCheckpoint("STAGE_1: After Parse & Sort", entries);
 
     debugGroup("DATA_IMPORT", "Parsed entries summary", () => {
       debugLog("DATA_IMPORT", `Total entries: ${entries.length}`);

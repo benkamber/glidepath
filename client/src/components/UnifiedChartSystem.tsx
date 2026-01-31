@@ -14,7 +14,7 @@ import {
   Legend,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { debugLog, debugGroup, debugCurrency } from '@/lib/debug-logger';
+import { debugLog, debugGroup, debugCurrency, debugCheckpoint } from '@/lib/debug-logger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -148,6 +148,8 @@ export function UnifiedChartSystem({
 
   // Prepare chart data
   const chartData = useMemo(() => {
+    debugCheckpoint("STAGE_4: Before Chart Render", filteredEntries);
+
     const data = filteredEntries.map(entry => {
       const entryDate = new Date(entry.date);
       const chartPoint: any = {

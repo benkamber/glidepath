@@ -97,3 +97,42 @@ export function debugCurrency(value: number): string {
     minimumFractionDigits: 2,
   }).format(value);
 }
+
+/**
+ * Generate a quick integrity checksum for entry arrays
+ * Format: "count|lastDate|lastNetWorth"
+ *
+ * If this changes between stages unexpectedly, you found the bug!
+ */
+export function dataHash(entries: Array<{ date: string; totalNetWorth?: number; netWorth?: number }>): string {
+  if (entries.length === 0) return '0|none|$0';
+
+  const last = entries[entries.length - 1];
+  const netWorth = last.totalNetWorth ?? last.netWorth ?? 0;
+
+  return `${entries.length}|${last.date}|${debugCurrency(netWorth)}`;
+}
+
+/**
+ * Log data integrity checkpoint
+ * Shows count, last date, and last net worth at each stage
+ */
+export function debugCheckpoint(stage: string, entries: Array<{ date: string; totalNetWorth?: number; netWorth?: number }>) {
+  if (!DEBUG_ENABLED) return;
+
+  const hash = dataHash(entries);
+  const first = entries.length > 0 ? entries[0] : null;
+  const last = entries.length > 0 ? entries[entries.length - 1] : null;
+
+  console.log(
+    `%c[CHECKPOINT] ${stage}`,
+    'background: #3b82f6; color: white; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+    hash
+  );
+
+  if (first && last) {
+    console.log(
+      `  📊 Count: ${entries.length} | Range: ${first.date} → ${last.date}`
+    );
+  }
+}

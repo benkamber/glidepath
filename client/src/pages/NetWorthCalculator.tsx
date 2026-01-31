@@ -87,7 +87,7 @@ import { exportData, importDataFromFile, shouldShowBackupReminder, markBackupRem
 import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, AlertTriangle } from "lucide-react";
-import { debugLog, debugTable, debugGroup, debugCurrency, DEBUG_ENABLED } from "@/lib/debug-logger";
+import { debugLog, debugTable, debugGroup, debugCurrency, DEBUG_ENABLED, debugCheckpoint } from "@/lib/debug-logger";
 
 // Types
 interface Entry {
@@ -333,6 +333,8 @@ export default function NetWorthCalculator() {
     try {
       const stored = getItem<Entry[]>(STORAGE_KEY);
       if (stored) {
+        debugCheckpoint("STAGE_2: After Storage Load", stored);
+
         debugGroup("STORAGE_LOAD", "Loading entries from localStorage", () => {
           debugLog("STORAGE_LOAD", `Loaded ${stored.length} entries`);
           if (stored.length > 0) {
@@ -402,6 +404,8 @@ export default function NetWorthCalculator() {
       const sorted = [...entries].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
       );
+
+      debugCheckpoint("STAGE_3: After Sort", sorted);
 
       debugGroup("NET_WORTH_CALC", "Sorted Entries", () => {
         debugLog("NET_WORTH_CALC", `Total entries: ${sorted.length}`);
@@ -1448,10 +1452,14 @@ export default function NetWorthCalculator() {
               investment: ie.investment,
             }));
 
+            const combined = [...entries, ...newEntries];
+
+            debugCheckpoint("STAGE_1B: After Import to State", combined);
+
             debugGroup("DATA_IMPORT", "Importing entries to main state", () => {
               debugLog("DATA_IMPORT", `Importing ${newEntries.length} new entries`);
               debugLog("DATA_IMPORT", `Existing entries: ${entries.length}`);
-              debugLog("DATA_IMPORT", `Total after import: ${entries.length + newEntries.length}`);
+              debugLog("DATA_IMPORT", `Total after import: ${combined.length}`);
               if (newEntries.length > 0) {
                 debugLog("DATA_IMPORT", "First new entry:", {
                   date: newEntries[0].date,
@@ -1464,7 +1472,7 @@ export default function NetWorthCalculator() {
               }
             });
 
-            setEntries([...entries, ...newEntries]);
+            setEntries(combined);
           }}
         />
 
