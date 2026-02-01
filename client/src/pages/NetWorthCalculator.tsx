@@ -76,6 +76,7 @@ import { RunwayAnalysis } from "@/components/RunwayAnalysis";
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
 import { SavingsRateSensitivity } from "@/components/SavingsRateSensitivity";
 import { HistoricalBacktest } from "@/components/HistoricalBacktest";
+import { LocationGlidepath } from "@/components/LocationGlidepath";
 import { DataSources } from "@/components/DataSources";
 // import { DataImport } from "@/components/DataImport"; // Disabled - AI costs
 import { SimpleDataImport } from "@/components/SimpleDataImport";
@@ -1344,6 +1345,13 @@ export default function NetWorthCalculator() {
               <HistoricalBacktest
                 currentNetWorth={latestEntry.totalNetWorth}
                 annualExpenses={(profile.targetRetirementSpending || profile.monthlyExpenses || 5000) * 12}
+              />
+              <LocationGlidepath
+                currentNetWorth={latestEntry.totalNetWorth}
+                currentAge={profile.age}
+                annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+                currentMetro={profile.metro}
+                currentSavingsRate={inferredSavingsRate}
               />
             </TabsContent>
 
