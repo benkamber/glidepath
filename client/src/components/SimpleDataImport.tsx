@@ -13,7 +13,6 @@ interface ParsedEntry {
   date: string;
   totalNetWorth: number;
   cash: number;
-  investment?: number;
   source: string;
 }
 
@@ -71,7 +70,10 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
     const hasHeader = firstLineValues.some(val =>
       val.toLowerCase().includes("date") ||
       val.toLowerCase().includes("worth") ||
-      val.toLowerCase().includes("cash")
+      val.toLowerCase().includes("cash") ||
+      val.toLowerCase().includes("net") ||
+      val.toLowerCase().includes("total") ||
+      val.toLowerCase().includes("balance")
     );
 
     const dataLines = hasHeader ? lines.slice(1) : lines;
@@ -84,11 +86,10 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
         if (values.length < 2) continue; // Need at least date and net worth
 
-        // Try to find date, net worth, cash
+        // Try to find date and net worth (minimum), cash is optional
         let date: string | null = null;
         let netWorth: number | null = null;
         let cash: number | null = null;
-        let investment: number | null = null;
 
         // Strategy 1: First column is date
         const possibleDate = parseFlexibleDate(values[0]);
@@ -99,12 +100,11 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
           const numbers = values.slice(1).map(parseNumber).filter(n => n !== null) as number[];
 
           if (numbers.length >= 2) {
-            // Assume: first number = net worth, second = cash
+            // First number = net worth, second = cash (liquid)
             netWorth = numbers[0];
             cash = numbers[1];
-            if (numbers.length >= 3) investment = numbers[2];
           } else if (numbers.length === 1) {
-            // Only net worth provided
+            // Only net worth provided — cash defaults to 0
             netWorth = numbers[0];
             cash = 0;
           }
@@ -121,7 +121,6 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
               if (numbers.length >= 2) {
                 netWorth = numbers[0];
                 cash = numbers[1];
-                if (numbers.length >= 3) investment = numbers[2];
               } else if (numbers.length === 1) {
                 netWorth = numbers[0];
                 cash = 0;
@@ -131,13 +130,12 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
           }
         }
 
-        // If we found valid data, add entry
-        if (date && netWorth !== null && cash !== null) {
+        // If we found valid data, add entry (only date + net worth required)
+        if (date && netWorth !== null) {
           const entry = {
             date,
             totalNetWorth: Math.round(netWorth),
-            cash: Math.round(cash),
-            investment: investment !== null ? Math.round(investment) : undefined,
+            cash: Math.round(cash ?? 0),
             source: "imported",
           };
           entries.push(entry);
@@ -172,8 +170,8 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
         "Could not parse any entries. Make sure your data includes:\n" +
         "• Date (first column recommended)\n" +
         "• Net Worth (required)\n" +
-        "• Cash / Liquid (required)\n" +
-        "• Investment is auto-calculated as Net Worth - Cash\n\n" +
+        "• Cash / Liquid (optional — defaults to $0 if not provided)\n\n" +
+        "Investment split is automatically calculated from your asset allocation percentages in your profile.\n\n" +
         "Supported formats: CSV, TSV, or copy-paste from Excel/Google Sheets"
       );
       return;
@@ -252,13 +250,13 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
             <div className="space-y-2">
               <p className="font-semibold text-base">✨ Supported Formats</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li><strong>CSV:</strong> Date, Net Worth, Cash (Liquid) — investment is auto-calculated</li>
-                <li><strong>TSV:</strong> Date→Net Worth→Cash (tab-separated from Excel/Sheets)</li>
-                <li><strong>Copy-paste:</strong> Select cells in Excel/Google Sheets and paste here</li>
-                <li><strong>Headers:</strong> Optional - first row can be headers or data</li>
+                <li><strong>Minimum:</strong> Date, Net Worth — just two columns works</li>
+                <li><strong>With cash:</strong> Date, Net Worth, Cash (Liquid) — optional 3rd column</li>
+                <li><strong>TSV:</strong> Tab-separated from Excel/Google Sheets</li>
+                <li><strong>Headers:</strong> Optional — first row can be headers or data</li>
               </ul>
               <p className="text-xs italic pt-2 text-yellow-600">
-                ⚠️ For complex/messy formats, use manual entry. This parser works best with structured data.
+                Investment split is calculated from your asset allocation % in your profile — no need to import it separately.
               </p>
             </div>
           </AlertDescription>
@@ -266,7 +264,7 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
         {/* Input Area */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">📋 Paste your data (3+ columns: Date, Net Worth, Cash (Liquid)):</label>
+          <label className="text-sm font-medium">📋 Paste your data (minimum: Date + Net Worth):</label>
           <p className="text-xs text-blue-600 dark:text-blue-400">
             <strong>Two-step process:</strong> First parse to preview, then import to add to your tracker
           </p>
@@ -275,20 +273,19 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
             onChange={(e) => setRawData(e.target.value)}
             placeholder={`Example formats that work:
 
-CSV (comma-separated):
-Date,Net Worth,Cash (Liquid)
+Just Date + Net Worth (minimum):
+1/1/2024,50000
+2/1/2024,55000
+
+With optional Cash (Liquid) column:
+Date,Net Worth,Cash
 1/1/2024,50000,10000
 2/1/2024,55000,12000
 
 TSV (tab-separated, from Excel):
-Date	Net Worth	Cash (Liquid)
-1/1/2024	50000	10000
-2/1/2024	55000	12000
-
-With headers:
-date,total,liquid
-2024-01-01,$50,000,$10,000
-2024-02-01,$55,000,$12,000
+Date	Net Worth
+1/1/2024	50000
+2/1/2024	55000
 
 Just paste and click Parse!`}
             className="min-h-[250px] font-mono text-sm"
@@ -328,7 +325,7 @@ Just paste and click Parse!`}
               </Badge>
             </div>
 
-            {/* Preview Table */}
+            {/* Preview Table — reverse-chronological (newest first) */}
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
@@ -336,11 +333,10 @@ Just paste and click Parse!`}
                     <th className="text-left py-2 px-3 font-medium">Date</th>
                     <th className="text-right py-2 px-3 font-medium">Net Worth</th>
                     <th className="text-right py-2 px-3 font-medium">Cash (Liquid)</th>
-                    <th className="text-right py-2 px-3 font-medium">Invested (calculated)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {parsedEntries.slice(0, 10).map((entry, idx) => (
+                  {[...parsedEntries].reverse().slice(0, 10).map((entry, idx) => (
                     <tr key={idx} className="border-t hover:bg-muted/30">
                       <td className="py-2 px-3">
                         {new Date(entry.date).toLocaleDateString()}
@@ -349,10 +345,7 @@ Just paste and click Parse!`}
                         {formatCurrency(entry.totalNetWorth)}
                       </td>
                       <td className="text-right py-2 px-3">
-                        {formatCurrency(entry.cash)}
-                      </td>
-                      <td className="text-right py-2 px-3 text-muted-foreground">
-                        {formatCurrency(entry.investment || (entry.totalNetWorth - entry.cash))}
+                        {entry.cash > 0 ? formatCurrency(entry.cash) : <span className="text-muted-foreground">—</span>}
                       </td>
                     </tr>
                   ))}
@@ -362,7 +355,7 @@ Just paste and click Parse!`}
 
             {parsedEntries.length > 10 && (
               <p className="text-xs text-muted-foreground text-center">
-                Showing first 10 of {parsedEntries.length} entries
+                Showing latest 10 of {parsedEntries.length} entries (newest first)
               </p>
             )}
 
@@ -386,8 +379,8 @@ Just paste and click Parse!`}
             <li>• First row with "date", "worth", "cash" keywords = headers (skipped)</li>
             <li>• Dates: MM/DD/YYYY, YYYY-MM-DD, M/D/YY, "January 1, 2024", etc.</li>
             <li>• Numbers: Handles $, commas, spaces (e.g., "$50,000" → 50000)</li>
-            <li>• Invested amount: always calculated as Net Worth - Cash (Liquid)</li>
-            <li>• ⚠️ For messy data, consider entering manually (no AI parser = no flexible parsing)</li>
+            <li>• Minimum: Date + Net Worth. Cash column is optional.</li>
+            <li>• Investment split uses your asset allocation % from your profile</li>
           </ul>
         </div>
       </CardContent>

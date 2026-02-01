@@ -106,22 +106,36 @@ export function ProfileSection({
                 <User className="h-4 w-4" />
                 Age
               </Label>
-              <Input
-                id="age"
-                type="number"
-                min={18}
-                max={80}
-                value={profile?.age != null ? String(profile.age) : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    onProfileChange({ age: 0 });
-                  } else {
-                    onProfileChange({ age: parseInt(val, 10) || 0 });
-                  }
-                }}
-                placeholder="30"
-              />
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={18}
+                  max={80}
+                  step={1}
+                  value={[profile?.age ?? 30]}
+                  onValueChange={([val]) => onProfileChange({ age: val })}
+                  className="flex-1"
+                />
+                <Input
+                  id="age"
+                  type="number"
+                  min={18}
+                  max={80}
+                  value={profile?.age != null ? String(profile.age) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      onProfileChange({ age: 0 });
+                    } else {
+                      onProfileChange({ age: parseInt(val, 10) || 0 });
+                    }
+                  }}
+                  placeholder="30"
+                  className="w-20"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used for peer comparison (SCF percentile by age bracket) and projection endpoints.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -129,22 +143,36 @@ export function ProfileSection({
                 <Briefcase className="h-4 w-4" />
                 Years Worked
               </Label>
-              <Input
-                id="years"
-                type="number"
-                min={0}
-                max={50}
-                value={profile?.yearsInWorkforce != null ? String(profile.yearsInWorkforce) : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    onProfileChange({ yearsInWorkforce: 0 });
-                  } else {
-                    onProfileChange({ yearsInWorkforce: parseInt(val, 10) || 0 });
-                  }
-                }}
-                placeholder="8"
-              />
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={0}
+                  max={50}
+                  step={1}
+                  value={[profile?.yearsInWorkforce ?? 8]}
+                  onValueChange={([val]) => onProfileChange({ yearsInWorkforce: val })}
+                  className="flex-1"
+                />
+                <Input
+                  id="years"
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={profile?.yearsInWorkforce != null ? String(profile.yearsInWorkforce) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      onProfileChange({ yearsInWorkforce: 0 });
+                    } else {
+                      onProfileChange({ yearsInWorkforce: parseInt(val, 10) || 0 });
+                    }
+                  }}
+                  placeholder="8"
+                  className="w-20"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Auto-detects career level (entry/mid/senior/staff/principal). Used with BLS wage data to estimate expected wealth accumulation.
+              </p>
             </div>
           </div>
 
@@ -274,7 +302,7 @@ export function ProfileSection({
                 onChange={(e) => onProfileChange({ targetRetirementAge: e.target.value ? parseInt(e.target.value) : undefined })}
               />
               <p className="text-xs text-muted-foreground">
-                When do you plan to retire? Used to auto-calculate projection horizon.
+                Sets the projection horizon for wealth trajectories, glidepath scenario analysis, and FIRE countdown. All future projections extend from today to this age. If blank, defaults to a manual slider.
               </p>
             </div>
 

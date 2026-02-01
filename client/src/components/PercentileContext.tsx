@@ -41,6 +41,9 @@ function getOrdinalSuffix(n: number): string {
 }
 
 export function PercentileContext({ currentNetWorth, profile }: PercentileContextProps) {
+  // All hooks must be called before any early returns (React Rules of Hooks)
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
   // Calculate SCF percentile based on age only
   const scfPercentile = useMemo(() => {
     if (currentNetWorth === null || !profile?.age) return null;
@@ -61,6 +64,12 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
       currentNetWorth: currentNetWorth ?? undefined,
     });
   }, [profile, currentNetWorth]);
+
+  // Get wage estimate for breakdown display
+  const wageEstimate = useMemo(() => {
+    if (!profile?.occupation || !profile?.level || !profile?.metro) return null;
+    return getWageEstimate(profile.occupation, profile.level, profile.metro);
+  }, [profile?.occupation, profile?.level, profile?.metro]);
 
   // No net worth data
   if (currentNetWorth === null) {
@@ -106,14 +115,6 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
   const isAhead = comparison?.isAhead ?? false;
   const delta = comparison?.delta ?? 0;
   const deltaPercent = comparison?.deltaPercent ?? 0;
-
-  const [showBreakdown, setShowBreakdown] = useState(false);
-
-  // Get wage estimate for breakdown display
-  const wageEstimate = useMemo(() => {
-    if (!profile?.occupation || !profile?.level || !profile?.metro) return null;
-    return getWageEstimate(profile.occupation, profile.level, profile.metro);
-  }, [profile?.occupation, profile?.level, profile?.metro]);
 
   return (
     <Card>

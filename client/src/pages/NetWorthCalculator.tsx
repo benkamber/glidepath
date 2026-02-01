@@ -829,6 +829,15 @@ export default function NetWorthCalculator() {
     setFormCash(entry.cash.toString());
   }, []);
 
+  // Check if allocation is valid (sums to 100%)
+  const allocationValid = useMemo(() => {
+    if (!profile?.targetAllocation) return true; // No allocation set yet — don't block
+    const sum = profile.targetAllocation.cashPercent +
+      profile.targetAllocation.investmentPercent +
+      profile.targetAllocation.otherPercent;
+    return Math.abs(sum - 1.0) < 0.011; // ~1% tolerance
+  }, [profile?.targetAllocation]);
+
   if (!isLoaded || !isProfileLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -841,11 +850,13 @@ export default function NetWorthCalculator() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-terminal-border pb-4">
+        <div className="flex items-center justify-between border-b border-terminal-border pb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-wider text-primary">GLIDEPATH</h1>
-            <p className="text-muted-foreground mt-1 text-xs font-mono uppercase tracking-wide">
-              Wealth trajectory analysis system
+            <h1 className="text-4xl md:text-5xl font-bold tracking-widest text-primary font-mono">
+              GLIDEPATH
+            </h1>
+            <p className="text-muted-foreground mt-2 text-sm font-mono uppercase tracking-[0.25em]">
+              Wealth Trajectory Analysis
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1001,8 +1012,22 @@ export default function NetWorthCalculator() {
           />
         )}
 
+        {/* Allocation Over 100% Warning */}
+        {!allocationValid && profile?.targetAllocation && (
+          <Alert variant="destructive" className="border-2">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertDescription className="text-base">
+              <strong>Asset allocation totals {Math.round(
+                (profile.targetAllocation.cashPercent +
+                 profile.targetAllocation.investmentPercent +
+                 profile.targetAllocation.otherPercent) * 100
+              )}%.</strong> It must equal 100% before calculations can run. Adjust your allocation sliders in the profile section above.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Summary Cards */}
-        {latestEntry && (
+        {latestEntry && allocationValid && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Card className="terminal-card terminal-border">
               <CardContent className="pt-4 pb-4">
@@ -1189,7 +1214,7 @@ export default function NetWorthCalculator() {
         </div>
 
         {/* Unified Chart System - New Advanced Visualization */}
-        {entries.length >= 2 && profile && latestEntry && (() => {
+        {entries.length >= 2 && profile && latestEntry && allocationValid && (() => {
           // Calculate FIRE thresholds dynamically based on user's spending
           const monthlySpending = profile.targetRetirementSpending || profile.monthlyExpenses || 5000;
           const annualExpenses = monthlySpending * 12;
@@ -1264,7 +1289,7 @@ export default function NetWorthCalculator() {
         /> */}
 
         {/* Deviation Alert - Shows if significantly ahead or behind trajectory */}
-        {entries.length >= 3 && (
+        {entries.length >= 3 && allocationValid && (
           <DeviationAlert entries={entries} />
         )}
 
@@ -1312,7 +1337,7 @@ export default function NetWorthCalculator() {
         )} */}
 
         {/* Analysis Tools - Non-Chart Tools Only (Charts are in UnifiedChartSystem lenses) */}
-        {entries.length >= 2 && profile && latestEntry && (
+        {entries.length >= 2 && profile && latestEntry && allocationValid && (
           <Tabs defaultValue="fire" className="w-full">
             <TabsList className="grid w-full grid-cols-3 gap-1">
               <TabsTrigger value="fire" className="gap-2 text-xs lg:text-sm">
@@ -1524,12 +1549,14 @@ export default function NetWorthCalculator() {
         <SimpleDataImport
           onImport={(importedEntries) => {
             // Convert imported entries to Entry format and add them
+            // Investment is calculated from allocation %, not imported
+            const investmentPercent = profile?.targetAllocation?.investmentPercent ?? 0.70;
             const newEntries = importedEntries.map(ie => ({
               id: Date.now().toString() + Math.random(),
               date: ie.date,
               totalNetWorth: ie.totalNetWorth,
               cash: ie.cash,
-              investment: ie.investment,
+              investment: Math.round(ie.totalNetWorth * investmentPercent),
             }));
 
             const combined = [...entries, ...newEntries];
@@ -1557,7 +1584,7 @@ export default function NetWorthCalculator() {
         />
 
         {/* Monte Carlo Simulation */}
-        {entries.length >= 2 && profile && latestEntry && (() => {
+        {entries.length >= 2 && profile && latestEntry && allocationValid && (() => {
           const assetSplit = calculateAssetSplit(
             latestEntry.totalNetWorth,
             profile.targetAllocation
