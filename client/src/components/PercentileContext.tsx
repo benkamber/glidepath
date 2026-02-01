@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { TrendingUp, TrendingDown, Minus, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Tooltip,
@@ -9,6 +9,7 @@ import {
 import type { UserProfile } from '@/hooks/use-user-profile';
 import { getPercentileForAge } from '@/data/scf-data';
 import { modelExpectedWealth, getComparisonDescription } from '@/models/wealth-model';
+import { getWageEstimate } from '@/data/bls-wage-data';
 
 interface PercentileContextProps {
   currentNetWorth: number | null;
@@ -105,6 +106,14 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
   const isAhead = comparison?.isAhead ?? false;
   const delta = comparison?.delta ?? 0;
   const deltaPercent = comparison?.deltaPercent ?? 0;
+
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  // Get wage estimate for breakdown display
+  const wageEstimate = useMemo(() => {
+    if (!profile?.occupation || !profile?.level || !profile?.metro) return null;
+    return getWageEstimate(profile.occupation, profile.level, profile.metro);
+  }, [profile?.occupation, profile?.level, profile?.metro]);
 
   return (
     <Card>
@@ -204,6 +213,50 @@ export function PercentileContext({ currentNetWorth, profile }: PercentileContex
             </p>
           </div>
         </div>
+
+        {/* Collapsible calculation breakdown */}
+        {wealthModel && wageEstimate && (
+          <div className="mt-4 pt-4 border-t">
+            <button
+              onClick={() => setShowBreakdown(!showBreakdown)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              How is this calculated?
+            </button>
+            {showBreakdown && (
+              <div className="mt-3 p-3 bg-muted/30 rounded-lg text-xs space-y-2">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <span className="text-muted-foreground">Income estimate:</span>
+                  <span>BLS OES 2023 median for {profile!.level.replace('_', ' ')} {profile!.occupation.replace('_', ' ')} in {profile!.metro.replace('_', ' ')} = {formatCurrency(wageEstimate.totalComp)}</span>
+
+                  <span className="text-muted-foreground">Savings rate:</span>
+                  <span>{Math.round((profile!.savingsRate || 0.25) * 100)}% (inferred from history / default 25%)</span>
+
+                  <span className="text-muted-foreground">Years working:</span>
+                  <span>{profile!.yearsInWorkforce} years (age {profile!.age - profile!.yearsInWorkforce} to {profile!.age})</span>
+
+                  <span className="text-muted-foreground">Return assumption:</span>
+                  <span>7% real (S&P historical average)</span>
+
+                  <span className="text-muted-foreground">Expected accumulation:</span>
+                  <span className="font-medium">{formatCompact(wealthModel.expectedNetWorth)}</span>
+
+                  <span className="text-muted-foreground">Your actual:</span>
+                  <span className="font-medium">{formatCompact(currentNetWorth!)}</span>
+
+                  <span className="text-muted-foreground">Delta:</span>
+                  <span className={`font-medium ${isAhead ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {delta >= 0 ? '+' : ''}{formatCompact(delta)} ({deltaPercent >= 0 ? '+' : ''}{(deltaPercent * 100).toFixed(0)}% {isAhead ? 'ahead' : 'behind'})
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground pt-1 border-t">
+                  Source: Federal Reserve SCF 2022 + BLS OES 2023
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footnote */}
         <p className="text-xs text-muted-foreground text-center mt-4 pt-4 border-t">

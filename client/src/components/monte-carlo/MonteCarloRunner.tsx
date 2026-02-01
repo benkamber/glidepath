@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,7 @@ export function MonteCarloRunner({
   const [timeHorizon, setTimeHorizon] = useState(120); // 10 years in months
 
   const { runSimulation: runWorkerSimulation, isWorkerSupported } = useMonteCarloWorker();
+  const hasAutoRun = useRef(false);
 
   const runSimulation = async () => {
     setIsRunning(true);
@@ -77,6 +78,18 @@ export function MonteCarloRunner({
       setProgress(0);
     }
   };
+
+  // Auto-run simulation on mount if all required props are present
+  useEffect(() => {
+    if (hasAutoRun.current) return;
+    if (currentNetWorth > 0 && monthlyIncome > 0) {
+      hasAutoRun.current = true;
+      const timer = setTimeout(() => {
+        runSimulation();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentNetWorth, monthlyIncome]);
 
   return (
     <Card>
@@ -207,7 +220,7 @@ export function MonteCarloRunner({
           ) : (
             <>
               <Play className="mr-2 h-4 w-4" />
-              Run Monte Carlo Analysis
+              {hasAutoRun.current ? 'Re-run Monte Carlo Analysis' : 'Run Monte Carlo Analysis'}
             </>
           )}
         </Button>

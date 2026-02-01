@@ -157,21 +157,26 @@ export function UnifiedChartSystem({
   const chartData = useMemo(() => {
     debugCheckpoint("STAGE_4: Before Chart Render", filteredEntries);
 
+    // When glidepath lens is active, always include netWorth so historical line is visible
+    const effectiveLayers = activeLens === 'glidepath' && !activeLayers.includes('netWorth')
+      ? [...activeLayers, 'netWorth' as DataLayer]
+      : activeLayers;
+
     const data = filteredEntries.map(entry => {
       const entryDate = new Date(entry.date);
       const chartPoint: any = {
-        date: `${entryDate.getMonth() + 1}/${entryDate.getFullYear()}`, // Format as MM/YYYY to avoid duplicates
+        date: `${entryDate.getMonth() + 1}/${entryDate.getFullYear()}`,
         fullDate: entry.date,
-        timestamp: entryDate.getTime(), // For sorting
+        timestamp: entryDate.getTime(),
       };
 
-      if (activeLayers.includes('netWorth')) {
+      if (effectiveLayers.includes('netWorth')) {
         chartPoint.netWorth = entry.totalNetWorth;
       }
-      if (activeLayers.includes('cash')) {
+      if (effectiveLayers.includes('cash')) {
         chartPoint.cash = entry.cash;
       }
-      if (activeLayers.includes('investment')) {
+      if (effectiveLayers.includes('investment')) {
         chartPoint.investment = entry.investment || (entry.totalNetWorth - entry.cash);
       }
 
@@ -195,7 +200,7 @@ export function UnifiedChartSystem({
     });
 
     return data;
-  }, [filteredEntries, activeLayers]);
+  }, [filteredEntries, activeLayers, activeLens]);
 
   // Add lens-specific data overlays
   const enrichedChartData = useMemo(() => {
@@ -217,12 +222,13 @@ export function UnifiedChartSystem({
     // Add peer comparison percentiles
     if (activeLens === 'peer' && percentileData && currentAge) {
       data.forEach((point, i) => {
+        if (i >= filteredEntries.length) return;
         const entry = filteredEntries[i];
-        const entryAge = currentAge - Math.floor(
-          (new Date().getTime() - new Date(entry.date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+        const entryAge = Math.round(
+          currentAge - (new Date().getTime() - new Date(entry.date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
         );
 
-        const band = percentileData.find(p => Math.abs(p.age - entryAge) < 1);
+        const band = percentileData.find(p => p.age === entryAge);
         if (band) {
           point.p25 = band.p25;
           point.p50 = band.p50;
@@ -561,27 +567,37 @@ export function UnifiedChartSystem({
             <ComposedChart data={enrichedChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
-                dataKey="date"
+                dataKey="timestamp"
+                type="number"
+                domain={['dataMin', 'dataMax']}
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
                 interval="preserveStartEnd"
+                tickCount={10}
                 angle={-45}
                 textAnchor="end"
                 height={60}
-                tickFormatter={(value) => {
-                  // Show only year if we have many data points
-                  const parts = value.split('/');
-                  if (parts.length === 2) {
-                    return enrichedChartData.length > 24 ? parts[1] : value;
-                  }
-                  return value;
-                }}
+                tickFormatter={(ts) => new Date(ts).getFullYear().toString()}
               />
               <YAxis
+                yAxisId="left"
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
                 tickFormatter={formatCurrency}
               />
+              {activeLens === 'velocity' && (
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="hsl(38 92% 50%)"
+                  fontSize={12}
+                  tickFormatter={(value) => {
+                    if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M/yr`;
+                    if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(0)}k/yr`;
+                    return `$${value.toFixed(0)}/yr`;
+                  }}
+                />
+              )}
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
@@ -598,10 +614,11 @@ export function UnifiedChartSystem({
               <Legend />
 
               {/* Base Data Layers */}
-              {activeLayers.includes('netWorth') && (
+              {(activeLayers.includes('netWorth') || activeLens === 'glidepath') && (
                 <Line
                   type="monotone"
                   dataKey="netWorth"
+                  yAxisId="left"
                   stroke="hsl(var(--primary))"
                   strokeWidth={2}
                   dot={false}
@@ -613,6 +630,7 @@ export function UnifiedChartSystem({
                 <Line
                   type="monotone"
                   dataKey="cash"
+                  yAxisId="left"
                   stroke="hsl(142 76% 36%)"
                   strokeWidth={2}
                   dot={false}
@@ -624,6 +642,7 @@ export function UnifiedChartSystem({
                 <Line
                   type="monotone"
                   dataKey="investment"
+                  yAxisId="left"
                   stroke="hsl(197 100% 44%)"
                   strokeWidth={2}
                   dot={false}
@@ -632,11 +651,12 @@ export function UnifiedChartSystem({
                 />
               )}
 
-              {/* Velocity Lens */}
+              {/* Velocity Lens — secondary Y-axis */}
               {activeLens === 'velocity' && (
                 <Line
                   type="monotone"
                   dataKey="velocity"
+                  yAxisId="right"
                   stroke="hsl(38 92% 50%)"
                   strokeWidth={2}
                   strokeDasharray="5 5"
@@ -651,6 +671,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="p25"
+                    yAxisId="left"
                     stroke="none"
                     fill="hsl(var(--muted))"
                     fillOpacity={0.3}
@@ -659,6 +680,7 @@ export function UnifiedChartSystem({
                   <Line
                     type="monotone"
                     dataKey="p50"
+                    yAxisId="left"
                     stroke="hsl(var(--muted-foreground))"
                     strokeWidth={1}
                     strokeDasharray="3 3"
@@ -668,6 +690,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="p75"
+                    yAxisId="left"
                     stroke="none"
                     fill="hsl(var(--muted))"
                     fillOpacity={0.3}
@@ -683,6 +706,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="mc95"
+                    yAxisId="left"
                     stroke="hsl(var(--primary))"
                     strokeWidth={1}
                     strokeDasharray="3 3"
@@ -693,6 +717,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="mc5"
+                    yAxisId="left"
                     stroke="hsl(var(--primary))"
                     strokeWidth={1}
                     strokeDasharray="3 3"
@@ -705,6 +730,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="mc75"
+                    yAxisId="left"
                     stroke="hsl(var(--primary))"
                     strokeWidth={1}
                     fill="hsl(var(--primary))"
@@ -714,6 +740,7 @@ export function UnifiedChartSystem({
                   <Area
                     type="monotone"
                     dataKey="mc25"
+                    yAxisId="left"
                     stroke="hsl(var(--primary))"
                     strokeWidth={1}
                     fill="hsl(var(--background))"
@@ -725,6 +752,7 @@ export function UnifiedChartSystem({
                   <Line
                     type="monotone"
                     dataKey="mc50"
+                    yAxisId="left"
                     stroke="hsl(var(--primary))"
                     strokeWidth={3}
                     dot={false}
@@ -735,6 +763,7 @@ export function UnifiedChartSystem({
                   <Line
                     type="monotone"
                     dataKey="projection"
+                    yAxisId="left"
                     stroke="hsl(142 76% 36%)"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -748,6 +777,7 @@ export function UnifiedChartSystem({
               {activeLens === 'fire' && fireThresholds && fireThresholds.map((threshold) => (
                 <ReferenceLine
                   key={threshold.name}
+                  yAxisId="left"
                   y={threshold.amount}
                   stroke={threshold.color}
                   strokeDasharray="3 3"
@@ -769,6 +799,7 @@ export function UnifiedChartSystem({
                       <Area
                         type="monotone"
                         dataKey="gpDecisionUpper"
+                        yAxisId="left"
                         stroke="none"
                         fill="#10b981"
                         fillOpacity={0.08}
@@ -778,6 +809,7 @@ export function UnifiedChartSystem({
                       <Area
                         type="monotone"
                         dataKey="gpDecisionLower"
+                        yAxisId="left"
                         stroke="none"
                         fill="hsl(var(--background))"
                         fillOpacity={1}
@@ -794,6 +826,7 @@ export function UnifiedChartSystem({
                         key={scenario.id}
                         type="monotone"
                         dataKey={`gp_${scenario.id}`}
+                        yAxisId="left"
                         stroke={scenario.color}
                         strokeWidth={scenario.strokeWidth}
                         strokeDasharray={scenario.strokeDasharray}
@@ -808,6 +841,7 @@ export function UnifiedChartSystem({
                   {fireThresholds && fireThresholds.map((threshold) => (
                     <ReferenceLine
                       key={`gp-fire-${threshold.name}`}
+                      yAxisId="left"
                       y={threshold.amount}
                       stroke={threshold.color}
                       strokeDasharray="3 3"

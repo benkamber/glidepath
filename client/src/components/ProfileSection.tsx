@@ -320,19 +320,15 @@ export function ProfileSection({
             {/* Cash Percentage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="cash-percent" className="text-sm">
+                <Label htmlFor="cash-percent" className="text-sm flex items-center gap-2">
                   💵 Cash & Equivalents
-                </Label>
-                <div className="text-sm font-medium flex flex-col items-end">
-                  <span>
-                    {((profile?.targetAllocation?.cashPercent ?? 0.20) * 100).toFixed(1)}%
-                  </span>
+                  <span className="font-medium text-base">{((profile?.targetAllocation?.cashPercent ?? 0.20) * 100).toFixed(1)}%</span>
                   {totalNetWorth && (
                     <span className="text-xs text-muted-foreground">
                       ≈ ${((profile?.targetAllocation?.cashPercent ?? 0.20) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   )}
-                </div>
+                </Label>
               </div>
               <Slider
                 id="cash-percent"
@@ -348,7 +344,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full max-w-[50%]"
+                className="w-full"
               />
               <p className="text-xs text-muted-foreground">
                 Savings accounts, checking, money market
@@ -358,19 +354,15 @@ export function ProfileSection({
             {/* Investment Percentage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="investment-percent" className="text-sm">
+                <Label htmlFor="investment-percent" className="text-sm flex items-center gap-2">
                   📈 Market Investments
-                </Label>
-                <div className="text-sm font-medium flex flex-col items-end">
-                  <span>
-                    {((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100).toFixed(1)}%
-                  </span>
+                  <span className="font-medium text-base">{((profile?.targetAllocation?.investmentPercent ?? 0.70) * 100).toFixed(1)}%</span>
                   {totalNetWorth && (
                     <span className="text-xs text-muted-foreground">
                       ≈ ${((profile?.targetAllocation?.investmentPercent ?? 0.70) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   )}
-                </div>
+                </Label>
               </div>
               <Slider
                 id="investment-percent"
@@ -386,7 +378,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full max-w-[50%]"
+                className="w-full"
               />
               <p className="text-xs text-muted-foreground">
                 Stocks, bonds, ETFs, mutual funds (brokerage, 401k, IRA)
@@ -396,19 +388,15 @@ export function ProfileSection({
             {/* Other Assets Percentage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="other-percent" className="text-sm">
+                <Label htmlFor="other-percent" className="text-sm flex items-center gap-2">
                   🏠 Other Assets
-                </Label>
-                <div className="text-sm font-medium flex flex-col items-end">
-                  <span>
-                    {((profile?.targetAllocation?.otherPercent ?? 0.10) * 100).toFixed(1)}%
-                  </span>
+                  <span className="font-medium text-base">{((profile?.targetAllocation?.otherPercent ?? 0.10) * 100).toFixed(1)}%</span>
                   {totalNetWorth && (
                     <span className="text-xs text-muted-foreground">
                       ≈ ${((profile?.targetAllocation?.otherPercent ?? 0.10) * totalNetWorth).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </span>
                   )}
-                </div>
+                </Label>
               </div>
               <Slider
                 id="other-percent"
@@ -424,7 +412,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full max-w-[50%]"
+                className="w-full"
               />
               <p className="text-xs text-muted-foreground">
                 Real estate equity, vehicles, collectibles, crypto

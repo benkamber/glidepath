@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { LogarithmicSliderInput } from '@/components/ui/logarithmic-slider-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ interface RunwayAnalysisProps {
   cashBalance: number;
   investmentBalance: number;
   historicalEntries?: Array<{ date: string; totalNetWorth: number; cash: number }>;
+  targetAllocation?: { cashPercent: number; investmentPercent: number; otherPercent: number };
 }
 
 export function RunwayAnalysis({
@@ -40,6 +42,7 @@ export function RunwayAnalysis({
   cashBalance,
   investmentBalance,
   historicalEntries = [],
+  targetAllocation,
 }: RunwayAnalysisProps) {
   // Infer monthly burn from historical data if available
   const inferredBurn = useMemo(() => {
@@ -51,6 +54,7 @@ export function RunwayAnalysis({
 
   // User inputs
   const [monthlyBurn, setMonthlyBurn] = useState(inferredBurn > 0 ? Math.round(inferredBurn) : 5000);
+  const [isWorking, setIsWorking] = useState(false);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [annualReturnRate, setAnnualReturnRate] = useState(7);
   const [taxRate, setTaxRate] = useState(20);
@@ -135,12 +139,22 @@ export function RunwayAnalysis({
           {/* Current Status Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Liquid Assets</p>
+              <p className="text-sm text-muted-foreground">Cash Position (from allocation)</p>
               <p className="text-2xl font-bold">{formatCurrency(cashBalance)}</p>
+              {targetAllocation && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on your {(targetAllocation.cashPercent * 100).toFixed(0)}% cash allocation
+                </p>
+              )}
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Invested Assets</p>
+              <p className="text-sm text-muted-foreground">Market Investments (from allocation)</p>
               <p className="text-2xl font-bold">{formatCurrency(investmentBalance)}</p>
+              {targetAllocation && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on your {(targetAllocation.investmentPercent * 100).toFixed(0)}% investment allocation
+                </p>
+              )}
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Total Net Worth</p>
@@ -155,9 +169,17 @@ export function RunwayAnalysis({
             {/* Monthly Burn */}
             <div className="space-y-2">
               {inferredBurn > 0 && (
-                <Badge variant="secondary" className="text-xs mb-2">
-                  Inferred from history: {formatCurrency(inferredBurn)}
-                </Badge>
+                <div className="p-3 bg-blue-500/5 border border-blue-500/30 rounded-lg space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium">Inferred from history: {formatCurrency(inferredBurn)}/mo</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    We look at your net worth changes over time, subtract estimated investment returns (7% annual),
+                    and attribute the remaining decrease to spending. This is a rough estimate — override with the slider
+                    if you know your actual monthly spend.
+                  </p>
+                </div>
               )}
               <LogarithmicSliderInput
                 id="monthlyBurn"
@@ -172,18 +194,39 @@ export function RunwayAnalysis({
               />
             </div>
 
-            {/* Monthly Income */}
-            <LogarithmicSliderInput
-              id="monthlyIncome"
-              label="Ongoing Monthly Income (Optional)"
-              icon="💰"
-              value={monthlyIncome || undefined}
-              onChange={(value) => setMonthlyIncome(value || 0)}
-              min={100}
-              max={500000}
-              placeholder="e.g., 2,000"
-              description="Passive income, part-time work, freelancing, dividends, etc. Leave 0 if taking a complete break."
-            />
+            {/* Working Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="is-working"
+                  checked={isWorking}
+                  onCheckedChange={(checked) => {
+                    setIsWorking(checked);
+                    if (!checked) setMonthlyIncome(0);
+                  }}
+                />
+                <Label htmlFor="is-working" className="cursor-pointer">
+                  Currently earning income?
+                </Label>
+              </div>
+              {!isWorking ? (
+                <p className="text-xs text-muted-foreground ml-12">
+                  Modeling a career break / sabbatical — no income assumed
+                </p>
+              ) : (
+                <LogarithmicSliderInput
+                  id="monthlyIncome"
+                  label="Ongoing Monthly Income"
+                  icon="💰"
+                  value={monthlyIncome || undefined}
+                  onChange={(value) => setMonthlyIncome(value || 0)}
+                  min={100}
+                  max={500000}
+                  placeholder="e.g., 2,000"
+                  description="Passive income, part-time work, freelancing, dividends, etc."
+                />
+              )}
+            </div>
 
             {/* Annual Return Rate */}
             <div className="space-y-2">

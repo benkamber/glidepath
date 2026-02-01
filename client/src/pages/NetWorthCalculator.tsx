@@ -91,7 +91,7 @@ import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "
 import { exportData, exportCSV, importDataFromFile, shouldShowBackupReminder, markBackupReminderShown } from "@/lib/data-backup";
 import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, AlertTriangle } from "lucide-react";
+import { Download, Upload, AlertTriangle, Bug } from "lucide-react";
 import { debugLog, debugTable, debugGroup, debugCurrency, DEBUG_ENABLED, debugCheckpoint } from "@/lib/debug-logger";
 
 // Types
@@ -336,6 +336,7 @@ export default function NetWorthCalculator() {
   // Feature toggles
   const [showRoast, setShowRoast] = useState(false);
   const [showCOL, setShowCOL] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(DEBUG_ENABLED);
 
   // Toast notifications
   const { toast } = useToast();
@@ -1368,6 +1369,7 @@ export default function NetWorthCalculator() {
                     cashBalance={assetSplit.cashAssets}
                     investmentBalance={assetSplit.investmentAssets}
                     historicalEntries={entries}
+                    targetAllocation={profile.targetAllocation}
                   />
                 );
               })()}
@@ -1716,8 +1718,30 @@ export default function NetWorthCalculator() {
         </div>
       </div>
 
-      {/* Debug Panel - Only shows when debug mode is enabled */}
-      <DebugPanel entries={entries} latestEntry={latestEntry} />
+      {/* Debug Panel - Shows when debug mode is enabled or toggled */}
+      <DebugPanel
+        entries={entries}
+        latestEntry={latestEntry}
+        forceVisible={debugVisible}
+        onClose={() => setDebugVisible(false)}
+      />
+
+      {/* Floating debug toggle button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`fixed bottom-4 ${debugVisible ? 'right-[26rem]' : 'right-4'} z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-opacity ${debugVisible ? 'bg-destructive/20 text-destructive' : ''}`}
+        onClick={() => {
+          const next = !debugVisible;
+          setDebugVisible(next);
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('debug', String(next));
+          }
+        }}
+        title="Toggle debug panel"
+      >
+        <Bug className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

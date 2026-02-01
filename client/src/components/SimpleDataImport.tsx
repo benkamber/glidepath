@@ -172,8 +172,8 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
         "Could not parse any entries. Make sure your data includes:\n" +
         "• Date (first column recommended)\n" +
         "• Net Worth (required)\n" +
-        "• Cash (required)\n" +
-        "• Investment (optional)\n\n" +
+        "• Cash / Liquid (required)\n" +
+        "• Investment is auto-calculated as Net Worth - Cash\n\n" +
         "Supported formats: CSV, TSV, or copy-paste from Excel/Google Sheets"
       );
       return;
@@ -252,7 +252,7 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
             <div className="space-y-2">
               <p className="font-semibold text-base">✨ Supported Formats</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li><strong>CSV:</strong> Date,Net Worth,Cash (or Date,Net Worth,Cash,Investment)</li>
+                <li><strong>CSV:</strong> Date, Net Worth, Cash (Liquid) — investment is auto-calculated</li>
                 <li><strong>TSV:</strong> Date→Net Worth→Cash (tab-separated from Excel/Sheets)</li>
                 <li><strong>Copy-paste:</strong> Select cells in Excel/Google Sheets and paste here</li>
                 <li><strong>Headers:</strong> Optional - first row can be headers or data</li>
@@ -266,7 +266,7 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
 
         {/* Input Area */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">📋 Paste your data (3+ columns: Date, Net Worth, Cash):</label>
+          <label className="text-sm font-medium">📋 Paste your data (3+ columns: Date, Net Worth, Cash (Liquid)):</label>
           <p className="text-xs text-blue-600 dark:text-blue-400">
             <strong>Two-step process:</strong> First parse to preview, then import to add to your tracker
           </p>
@@ -276,12 +276,12 @@ export function SimpleDataImport({ onImport }: SimpleDataImportProps) {
             placeholder={`Example formats that work:
 
 CSV (comma-separated):
-Date,Net Worth,Cash,Investment
-1/1/2024,50000,10000,40000
-2/1/2024,55000,12000,43000
+Date,Net Worth,Cash (Liquid)
+1/1/2024,50000,10000
+2/1/2024,55000,12000
 
 TSV (tab-separated, from Excel):
-Date	Net Worth	Cash
+Date	Net Worth	Cash (Liquid)
 1/1/2024	50000	10000
 2/1/2024	55000	12000
 
@@ -335,8 +335,8 @@ Just paste and click Parse!`}
                   <tr>
                     <th className="text-left py-2 px-3 font-medium">Date</th>
                     <th className="text-right py-2 px-3 font-medium">Net Worth</th>
-                    <th className="text-right py-2 px-3 font-medium">Cash</th>
-                    <th className="text-right py-2 px-3 font-medium">Investment</th>
+                    <th className="text-right py-2 px-3 font-medium">Cash (Liquid)</th>
+                    <th className="text-right py-2 px-3 font-medium">Invested (calculated)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -386,7 +386,7 @@ Just paste and click Parse!`}
             <li>• First row with "date", "worth", "cash" keywords = headers (skipped)</li>
             <li>• Dates: MM/DD/YYYY, YYYY-MM-DD, M/D/YY, "January 1, 2024", etc.</li>
             <li>• Numbers: Handles $, commas, spaces (e.g., "$50,000" → 50000)</li>
-            <li>• If investment not provided: calculated as Net Worth - Cash</li>
+            <li>• Invested amount: always calculated as Net Worth - Cash (Liquid)</li>
             <li>• ⚠️ For messy data, consider entering manually (no AI parser = no flexible parsing)</li>
           </ul>
         </div>

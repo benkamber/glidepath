@@ -17,6 +17,7 @@ interface DebugPanelProps {
     cash: number;
   } | null;
   onClose?: () => void;
+  forceVisible?: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -28,8 +29,8 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function DebugPanel({ entries, latestEntry, onClose }: DebugPanelProps) {
-  if (!DEBUG_ENABLED) return null;
+export function DebugPanel({ entries, latestEntry, onClose, forceVisible }: DebugPanelProps) {
+  if (!DEBUG_ENABLED && !forceVisible) return null;
 
   const sortedEntries = [...entries].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
