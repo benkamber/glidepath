@@ -178,6 +178,11 @@ export const parseFlexibleDate = (input: string): Date | null => {
     try {
       const parsed = parse(originalInput, formatStr, new Date());
       if (isValid(parsed)) {
+        // Century windowing for 2-digit year formats
+        const year = getYear(parsed);
+        if (year < 100) {
+          parsed.setFullYear(year < 50 ? year + 2000 : year + 1900);
+        }
         return parsed;
       }
     } catch (e) {

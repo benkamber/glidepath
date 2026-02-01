@@ -130,6 +130,23 @@ const formatPercent = (value: number) =>
 
 // Date parsing is now handled by @/lib/date-parser
 
+// Format number string with commas for display
+const formatWithCommas = (value: string): string => {
+  // Strip everything except digits and decimal point
+  const cleaned = value.replace(/[^0-9.]/g, '');
+  if (cleaned === '' || cleaned === '.') return cleaned;
+
+  const parts = cleaned.split('.');
+  // Format integer part with commas
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.length > 1 ? `${parts[0]}.${parts[1]}` : parts[0];
+};
+
+// Strip commas to get raw numeric string
+const stripCommas = (value: string): string => {
+  return value.replace(/,/g, '');
+};
+
 // Calculate linear regression
 const linearRegression = (data: { x: number; y: number }[]) => {
   const n = data.length;
@@ -1083,11 +1100,16 @@ export default function NetWorthCalculator() {
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       id="netWorth"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0.00"
-                      value={formNetWorth}
-                      onChange={(e) => setFormNetWorth(e.target.value)}
+                      value={formatWithCommas(formNetWorth)}
+                      onChange={(e) => setFormNetWorth(stripCommas(e.target.value))}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData.getData('text').replace(/[^0-9.]/g, '');
+                        setFormNetWorth(pasted);
+                      }}
                       className="pl-7"
                       required
                     />
@@ -1100,11 +1122,16 @@ export default function NetWorthCalculator() {
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       id="cash"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0.00"
-                      value={formCash}
-                      onChange={(e) => setFormCash(e.target.value)}
+                      value={formatWithCommas(formCash)}
+                      onChange={(e) => setFormCash(stripCommas(e.target.value))}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData.getData('text').replace(/[^0-9.]/g, '');
+                        setFormCash(pasted);
+                      }}
                       className="pl-7"
                       required
                     />
@@ -1506,7 +1533,7 @@ export default function NetWorthCalculator() {
         {/* Entry History - Collapsible Ledger */}
         <Card>
           <CardContent className="pt-6">
-            <Accordion type="single" collapsible defaultValue="history">
+            <Accordion type="single" collapsible defaultValue="">
               <AccordionItem value="history">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
@@ -1518,7 +1545,7 @@ export default function NetWorthCalculator() {
                 </AccordionTrigger>
                 <AccordionContent>
                   {sortedEntries.length > 0 ? (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b">

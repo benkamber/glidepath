@@ -85,7 +85,7 @@ export function ProfileSection({
             Your Profile
             {isComplete && (
               <span className="text-xs font-normal text-muted-foreground ml-2">
-                {profile?.age}yo, {profile?.yearsInWorkforce}yrs in {profile?.occupation?.replace('_', ' ')}
+                {profile?.age}yo, {profile?.yearsInWorkforce}yrs {profile?.occupation?.replace('_', ' ')}
               </span>
             )}
           </div>
@@ -111,8 +111,15 @@ export function ProfileSection({
                 type="number"
                 min={18}
                 max={80}
-                value={profile?.age ?? ''}
-                onChange={(e) => onProfileChange({ age: parseInt(e.target.value) || 0 })}
+                value={profile?.age != null ? String(profile.age) : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    onProfileChange({ age: 0 });
+                  } else {
+                    onProfileChange({ age: parseInt(val, 10) || 0 });
+                  }
+                }}
                 placeholder="30"
               />
             </div>
@@ -120,15 +127,22 @@ export function ProfileSection({
             <div className="space-y-2">
               <Label htmlFor="years" className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
-                Years Working
+                Years Worked
               </Label>
               <Input
                 id="years"
                 type="number"
                 min={0}
                 max={50}
-                value={profile?.yearsInWorkforce ?? ''}
-                onChange={(e) => onProfileChange({ yearsInWorkforce: parseInt(e.target.value) || 0 })}
+                value={profile?.yearsInWorkforce != null ? String(profile.yearsInWorkforce) : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    onProfileChange({ yearsInWorkforce: 0 });
+                  } else {
+                    onProfileChange({ yearsInWorkforce: parseInt(val, 10) || 0 });
+                  }
+                }}
                 placeholder="8"
               />
             </div>
@@ -334,7 +348,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full"
+                className="w-full max-w-[50%]"
               />
               <p className="text-xs text-muted-foreground">
                 Savings accounts, checking, money market
@@ -372,7 +386,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full"
+                className="w-full max-w-[50%]"
               />
               <p className="text-xs text-muted-foreground">
                 Stocks, bonds, ETFs, mutual funds (brokerage, 401k, IRA)
@@ -410,7 +424,7 @@ export function ProfileSection({
                   };
                   onProfileChange({ targetAllocation: newAllocation });
                 }}
-                className="w-full"
+                className="w-full max-w-[50%]"
               />
               <p className="text-xs text-muted-foreground">
                 Real estate equity, vehicles, collectibles, crypto
@@ -418,17 +432,17 @@ export function ProfileSection({
             </div>
 
             {/* Allocation Summary */}
-            <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Total Allocation:</span>
+            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Total Allocation:</span>
                 <span className={
                   Math.abs(
                     (profile?.targetAllocation?.cashPercent ?? 0.20) +
                     (profile?.targetAllocation?.investmentPercent ?? 0.70) +
                     (profile?.targetAllocation?.otherPercent ?? 0.10) - 1.0
                   ) < 0.01
-                    ? "font-semibold text-green-600 dark:text-green-400"
-                    : "font-semibold text-destructive"
+                    ? "text-2xl font-bold text-green-600 dark:text-green-400"
+                    : "text-2xl font-bold text-destructive"
                 }>
                   {Math.round(
                     ((profile?.targetAllocation?.cashPercent ?? 0.20) +
