@@ -63,6 +63,8 @@ import { inferSavingsRate, projectFutureWealth, projectionScenarios } from "@/mo
 import { wealthByAge, getBracketForAge } from "@/data/scf-data";
 import { calculateAssetSplit } from "@/lib/asset-allocation";
 import { calculateFIRENumber, FIRE_LEVELS, getFIRELevel } from "@/lib/fire-calculations";
+import { calculateGlidepathScenarios, type GlidepathResult } from "@/lib/glidepath";
+import { DEFAULT_ALLOCATION } from "@/config/constants";
 
 // New analysis components
 import { VelocityChart } from "@/components/VelocityChart";
@@ -511,6 +513,21 @@ export default function NetWorthCalculator() {
       return undefined;
     }
   }, [profile, latestEntry, inferredSavingsRate, projectionHorizonYears]);
+
+  // Glidepath scenarios — wealth trajectories under different life decisions
+  const glidepathData = useMemo<GlidepathResult | undefined>(() => {
+    if (!profile || !latestEntry) return undefined;
+    const annualExpenses = (profile.targetRetirementSpending || profile.monthlyExpenses || 5000) * 12;
+    return calculateGlidepathScenarios({
+      currentNetWorth: latestEntry.totalNetWorth,
+      currentAge: profile.age,
+      annualExpenses,
+      targetAllocation: profile.targetAllocation || DEFAULT_ALLOCATION,
+      projectionYears: Math.max(30, (profile.targetRetirementAge || 65) - profile.age + 10),
+      keepWorkingProjection: wealthProjection?.yearByYear,
+      partTimeAnnualIncome: 25000,
+    });
+  }, [profile, latestEntry, wealthProjection]);
 
   // Growth calculations
   const netWorthGrowthRate = useMemo(
@@ -1217,6 +1234,7 @@ export default function NetWorthCalculator() {
             projectionHorizonYears={projectionHorizonYears}
             onProjectionHorizonChange={setManualProjectionYears}
             targetRetirementAge={profile?.targetRetirementAge}
+            glidepathData={glidepathData}
           />
           );
         })()}

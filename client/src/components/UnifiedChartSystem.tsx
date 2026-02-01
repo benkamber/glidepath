@@ -34,11 +34,13 @@ import {
   Flame,
   AlertTriangle,
   Download,
+  Compass,
 } from 'lucide-react';
+import type { GlidepathResult } from '@/lib/glidepath';
 
 type TimeRange = '1Y' | '5Y' | '10Y' | 'All';
 type DataLayer = 'netWorth' | 'cash' | 'investment';
-type ChartLens = 'none' | 'velocity' | 'peer' | 'projection' | 'fire' | 'deviation';
+type ChartLens = 'none' | 'velocity' | 'peer' | 'projection' | 'fire' | 'deviation' | 'glidepath';
 
 interface Entry {
   date: string;
@@ -96,6 +98,7 @@ export interface UnifiedChartSystemProps {
   projectionHorizonYears?: number;
   onProjectionHorizonChange?: (years: number) => void;
   targetRetirementAge?: number;
+  glidepathData?: GlidepathResult;
 }
 
 const formatCurrency = (value: number) => {
@@ -119,10 +122,14 @@ export function UnifiedChartSystem({
   projectionHorizonYears = 10,
   onProjectionHorizonChange,
   targetRetirementAge,
+  glidepathData,
 }: UnifiedChartSystemProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
   const [activeLayers, setActiveLayers] = useState<DataLayer[]>(['netWorth']);
   const [activeLens, setActiveLens] = useState<ChartLens>('none');
+  const [visibleGlidepathScenarios, setVisibleGlidepathScenarios] = useState<Set<string>>(
+    new Set(['keep_working', 'swr_4', 'swr_35', 'swr_25', 'coast_fire', 'barista_fire'])
+  );
 
   // Filter data by time range
   const filteredEntries = useMemo(() => {
@@ -264,8 +271,65 @@ export function UnifiedChartSystem({
       }
     }
 
+    // Add glidepath scenario data
+    if (activeLens === 'glidepath' && glidepathData) {
+      const lastEntry = filteredEntries[filteredEntries.length - 1];
+      const lastDate = new Date(lastEntry.date);
+
+      // Find the max projection length across all scenarios
+      const maxYears = Math.max(...glidepathData.scenarios.map(s => s.yearByYear.length));
+
+      // Build future data points for each year
+      for (let y = 0; y < maxYears; y++) {
+        const futureDate = new Date(lastDate);
+        futureDate.setFullYear(futureDate.getFullYear() + y);
+
+        // Year 0 maps to current data point (last historical entry)
+        if (y === 0) {
+          // Enrich the last existing data point
+          const lastDataPoint = data[data.length - 1];
+          for (const scenario of glidepathData.scenarios) {
+            const pt = scenario.yearByYear.find(p => p.year === 0);
+            if (pt) {
+              lastDataPoint[`gp_${scenario.id}`] = pt.netWorth;
+            }
+          }
+          // Decision space shading
+          const keepWorkingPt = glidepathData.scenarios.find(s => s.id === 'keep_working')?.yearByYear[0];
+          const worstSwrPt = glidepathData.scenarios.find(s => s.id === 'swr_4')?.yearByYear[0];
+          if (keepWorkingPt) lastDataPoint.gpDecisionUpper = keepWorkingPt.netWorth;
+          if (worstSwrPt) lastDataPoint.gpDecisionLower = worstSwrPt.netWorth;
+          continue;
+        }
+
+        const dataPoint: any = {
+          date: `${futureDate.getMonth() + 1}/${futureDate.getFullYear()}`,
+          fullDate: futureDate.toISOString(),
+          timestamp: futureDate.getTime(),
+          netWorth: null,
+          cash: null,
+          investment: null,
+        };
+
+        for (const scenario of glidepathData.scenarios) {
+          const pt = scenario.yearByYear.find(p => p.year === y);
+          if (pt) {
+            dataPoint[`gp_${scenario.id}`] = pt.netWorth;
+          }
+        }
+
+        // Decision space: area between Keep Working and worst SWR (4%)
+        const keepWorkingPt = glidepathData.scenarios.find(s => s.id === 'keep_working')?.yearByYear.find(p => p.year === y);
+        const worstSwrPt = glidepathData.scenarios.find(s => s.id === 'swr_4')?.yearByYear.find(p => p.year === y);
+        if (keepWorkingPt) dataPoint.gpDecisionUpper = keepWorkingPt.netWorth;
+        if (worstSwrPt) dataPoint.gpDecisionLower = worstSwrPt.netWorth;
+
+        data.push(dataPoint);
+      }
+    }
+
     return data;
-  }, [chartData, activeLens, velocityData, percentileData, monteCarloData, profileProjection, filteredEntries, currentAge]);
+  }, [chartData, activeLens, velocityData, percentileData, monteCarloData, profileProjection, filteredEntries, currentAge, glidepathData]);
 
   // Toggle layer
   const toggleLayer = (layer: DataLayer) => {
@@ -393,9 +457,67 @@ export function UnifiedChartSystem({
                     Deviation Alerts
                   </span>
                 </SelectItem>
+                <SelectItem value="glidepath">
+                  <span className="flex items-center gap-2">
+                    <Compass className="h-4 w-4" />
+                    Glidepath Analysis
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Glidepath Controls */}
+          {activeLens === 'glidepath' && glidepathData && (
+            <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-primary/20">
+              <Label className="text-sm font-medium">Scenarios:</Label>
+              <div className="flex flex-wrap gap-3">
+                {glidepathData.scenarios.map(scenario => (
+                  <div key={scenario.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`gp-${scenario.id}`}
+                      checked={visibleGlidepathScenarios.has(scenario.id)}
+                      onCheckedChange={(checked) => {
+                        setVisibleGlidepathScenarios(prev => {
+                          const next = new Set(prev);
+                          if (checked) next.add(scenario.id);
+                          else next.delete(scenario.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <Label htmlFor={`gp-${scenario.id}`} className="text-sm cursor-pointer flex items-center gap-1.5">
+                      <span className="inline-block w-3 h-0.5" style={{ backgroundColor: scenario.color, borderBottom: scenario.strokeDasharray ? '2px dashed ' + scenario.color : '2px solid ' + scenario.color }} />
+                      {scenario.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {onProjectionHorizonChange && (
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <Label className="text-sm font-medium">Horizon:</Label>
+                  <div className="flex gap-1">
+                    {[10, 20, 30, 40, 50].map(years => (
+                      <Button
+                        key={years}
+                        variant={projectionHorizonYears === years ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => onProjectionHorizonChange(years)}
+                        className="h-8 px-3"
+                      >
+                        {years}yr
+                      </Button>
+                    ))}
+                  </div>
+                  {currentAge && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (projects to age {currentAge + projectionHorizonYears})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Projection Horizon Controls (only visible when projection lens active) */}
           {activeLens === 'projection' && onProjectionHorizonChange && (
@@ -466,7 +588,12 @@ export function UnifiedChartSystem({
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
                 }}
-                formatter={(value: number) => formatCurrency(value)}
+                formatter={(value: number, name: string) => {
+                  if (value == null) return [null, null];
+                  // Hide the decision space shading entries from tooltip
+                  if (name === 'Decision space (upper)' || name === 'Decision space (lower)') return [null, null];
+                  return [formatCurrency(value), name];
+                }}
               />
               <Legend />
 
@@ -632,6 +759,69 @@ export function UnifiedChartSystem({
                   }}
                 />
               ))}
+
+              {/* Glidepath Lens */}
+              {activeLens === 'glidepath' && glidepathData && (
+                <>
+                  {/* Decision space shading between Keep Working and worst SWR */}
+                  {visibleGlidepathScenarios.has('keep_working') && visibleGlidepathScenarios.has('swr_4') && (
+                    <>
+                      <Area
+                        type="monotone"
+                        dataKey="gpDecisionUpper"
+                        stroke="none"
+                        fill="#10b981"
+                        fillOpacity={0.08}
+                        name="Decision space (upper)"
+                        legendType="none"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="gpDecisionLower"
+                        stroke="none"
+                        fill="hsl(var(--background))"
+                        fillOpacity={1}
+                        name="Decision space (lower)"
+                        legendType="none"
+                      />
+                    </>
+                  )}
+
+                  {/* Scenario lines */}
+                  {glidepathData.scenarios.map(scenario =>
+                    visibleGlidepathScenarios.has(scenario.id) ? (
+                      <Line
+                        key={scenario.id}
+                        type="monotone"
+                        dataKey={`gp_${scenario.id}`}
+                        stroke={scenario.color}
+                        strokeWidth={scenario.strokeWidth}
+                        strokeDasharray={scenario.strokeDasharray}
+                        dot={false}
+                        name={scenario.label}
+                        connectNulls={false}
+                      />
+                    ) : null
+                  )}
+
+                  {/* FIRE reference lines (faded) when glidepath active */}
+                  {fireThresholds && fireThresholds.map((threshold) => (
+                    <ReferenceLine
+                      key={`gp-fire-${threshold.name}`}
+                      y={threshold.amount}
+                      stroke={threshold.color}
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.35}
+                      label={{
+                        value: threshold.name,
+                        position: 'right',
+                        fill: threshold.color,
+                        fontSize: 10,
+                      }}
+                    />
+                  ))}
+                </>
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -645,6 +835,7 @@ export function UnifiedChartSystem({
               {activeLens === 'projection' && '🎯 Projection: Shaded bands show probability range (darker = more likely). Thick line = median outcome (50% chance). Career model (dashed green) = deterministic BLS-based trajectory.'}
               {activeLens === 'fire' && '🔥 FIRE: Financial independence milestones'}
               {activeLens === 'deviation' && '⚠️ Deviation: Statistical anomaly detection'}
+              {activeLens === 'glidepath' && 'Glidepath: Your wealth trajectory under different life decisions. Solid green = keep working. Dashed lines = stop working at various withdrawal rates.'}
             </Badge>
           </div>
         )}
