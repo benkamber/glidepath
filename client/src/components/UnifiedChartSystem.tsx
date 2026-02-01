@@ -128,7 +128,7 @@ export function UnifiedChartSystem({
   const [activeLayers, setActiveLayers] = useState<DataLayer[]>(['netWorth']);
   const [activeLens, setActiveLens] = useState<ChartLens>('none');
   const [visibleGlidepathScenarios, setVisibleGlidepathScenarios] = useState<Set<string>>(
-    new Set(['keep_working', 'swr_4', 'swr_35', 'swr_25', 'coast_fire', 'barista_fire'])
+    new Set(['keep_working', 'swr_4', 'swr_35', 'swr_25', 'coast_fire', 'barista_fire', 'guardrails', 'vpw'])
   );
 
   // Filter data by time range

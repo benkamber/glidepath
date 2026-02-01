@@ -46,6 +46,33 @@ export function exportData(entries: any[], profile: any | null): void {
 }
 
 /**
+ * Export entries as CSV file
+ */
+export function exportCSV(entries: any[]): void {
+  const sorted = [...entries].sort(
+    (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  const header = 'date,netWorth,cash,investment';
+  const rows = sorted.map((e: any) => {
+    const investment = e.investment ?? (e.totalNetWorth - e.cash);
+    return `${e.date},${e.totalNetWorth},${e.cash},${investment}`;
+  });
+
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `net-worth-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * Validate backup data structure
  */
 export function validateBackupData(data: any): { valid: boolean; errors: string[] } {

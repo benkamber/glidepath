@@ -74,6 +74,8 @@ import { MultiScenarioAnalysis } from "@/components/MultiScenarioAnalysis";
 import { RunwayAnalysis } from "@/components/RunwayAnalysis";
 // import { AIInsights } from "@/components/AIInsights"; // Removed - provides bad recommendations
 import { UnifiedChartSystem } from "@/components/UnifiedChartSystem";
+import { SavingsRateSensitivity } from "@/components/SavingsRateSensitivity";
+import { HistoricalBacktest } from "@/components/HistoricalBacktest";
 import { DataSources } from "@/components/DataSources";
 // import { DataImport } from "@/components/DataImport"; // Disabled - AI costs
 import { SimpleDataImport } from "@/components/SimpleDataImport";
@@ -85,7 +87,7 @@ import { DebugPanel } from "@/components/DebugPanel";
 
 // New utilities
 import { setItem, getItem, removeItem, isStorageAvailable, StorageError } from "@/lib/storage";
-import { exportData, importDataFromFile, shouldShowBackupReminder, markBackupReminderShown } from "@/lib/data-backup";
+import { exportData, exportCSV, importDataFromFile, shouldShowBackupReminder, markBackupReminderShown } from "@/lib/data-backup";
 import { validateNetWorthEntry, validateDateEntry } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Upload, AlertTriangle } from "lucide-react";
@@ -862,6 +864,18 @@ export default function NetWorthCalculator() {
               💾 Backup Data
             </Button>
 
+            {/* CSV Export Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportCSV(entries)}
+              disabled={entries.length === 0}
+              title="Download entries as CSV spreadsheet"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+
             {/* Import Data Button */}
             <Button
               variant="outline"
@@ -1319,6 +1333,17 @@ export default function NetWorthCalculator() {
                 currentAge={profile.age}
                 annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
                 monthlyExpenses={profile.monthlyExpenses}
+              />
+              <SavingsRateSensitivity
+                currentNetWorth={latestEntry.totalNetWorth}
+                currentAge={profile.age}
+                annualIncome={getWageEstimate(profile.occupation, profile.level, profile.metro).totalComp}
+                annualExpenses={(profile.targetRetirementSpending || profile.monthlyExpenses || 5000) * 12}
+                currentSavingsRate={inferredSavingsRate}
+              />
+              <HistoricalBacktest
+                currentNetWorth={latestEntry.totalNetWorth}
+                annualExpenses={(profile.targetRetirementSpending || profile.monthlyExpenses || 5000) * 12}
               />
             </TabsContent>
 

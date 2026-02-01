@@ -151,7 +151,7 @@ export function MonteCarloRunner({
             value={[timeHorizon]}
             onValueChange={(v) => setTimeHorizon(v[0])}
             min={12}
-            max={240}
+            max={600}
             step={12}
           />
         </div>

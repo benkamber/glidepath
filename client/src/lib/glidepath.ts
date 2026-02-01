@@ -212,5 +212,96 @@ export function calculateGlidepathScenarios(input: GlidepathInput): GlidepathRes
     yearByYear: baristaPoints,
   });
 
+  // 7. Guyton-Klinger Guardrails — dynamic withdrawal with spending adjustments
+  {
+    const gkInitialRate = 0.05; // 5% initial withdrawal rate
+    const gkInitialWithdrawal = currentNetWorth * gkInitialRate;
+    const gkFloor = gkInitialWithdrawal * 0.80;    // never below 80% of initial
+    const gkCeiling = gkInitialWithdrawal * 1.20;  // never above 120% of initial
+    const gkPoints: GlidepathPoint[] = [{ year: 0, age: currentAge, netWorth: currentNetWorth }];
+    let gkNW = currentNetWorth;
+    let gkWithdrawal = gkInitialWithdrawal;
+    let gkPeakNW = currentNetWorth;
+    let gkCrossover: CrossoverPoint | undefined;
+
+    for (let y = 1; y <= projectionYears; y++) {
+      const growth = gkNW * weightedReturn;
+      gkNW = gkNW + growth;
+
+      // Update peak
+      if (gkNW > gkPeakNW) gkPeakNW = gkNW;
+
+      // Guardrail checks
+      if (gkNW <= gkPeakNW * 0.80) {
+        // Portfolio dropped 20% from peak → cut spending 10%
+        gkWithdrawal = Math.max(gkFloor, gkWithdrawal * 0.90);
+      } else if (gkNW >= currentNetWorth * 1.20) {
+        // Portfolio 20% above initial → increase spending 10%
+        gkWithdrawal = Math.min(gkCeiling, gkWithdrawal * 1.10);
+      }
+
+      gkNW -= gkWithdrawal;
+
+      if (gkNW <= 0) {
+        gkNW = 0;
+        if (!gkCrossover) {
+          gkCrossover = { scenarioId: 'guardrails', year: y, age: currentAge + y };
+        }
+      }
+      gkPoints.push({ year: y, age: currentAge + y, netWorth: gkNW });
+    }
+    if (gkCrossover) crossoverPoints.push(gkCrossover);
+    scenarios.push({
+      id: 'guardrails',
+      label: 'Guardrails (G-K)',
+      color: '#06b6d4',          // cyan
+      strokeDasharray: '10 3 3 3',
+      strokeWidth: 2,
+      yearByYear: gkPoints,
+    });
+  }
+
+  // 8. Variable Percentage Withdrawal (VPW) — withdraw portfolio/remaining_years with caps
+  {
+    const vpwTargetAge = 95;
+    const vpwPoints: GlidepathPoint[] = [{ year: 0, age: currentAge, netWorth: currentNetWorth }];
+    let vpwNW = currentNetWorth;
+    const vpwInitialWithdrawal = annualExpenses; // baseline reference for floor/ceiling
+    const vpwFloor = vpwInitialWithdrawal * 0.10;    // minimum 10% of expected expenses
+    const vpwCeiling = vpwInitialWithdrawal * 1.50;  // cap at 150% of expected expenses
+    let vpwCrossover: CrossoverPoint | undefined;
+
+    for (let y = 1; y <= projectionYears; y++) {
+      const growth = vpwNW * weightedReturn;
+      vpwNW = vpwNW + growth;
+
+      const currentAgeY = currentAge + y;
+      const remainingYears = Math.max(1, vpwTargetAge - currentAgeY);
+      let withdrawal = vpwNW / remainingYears;
+
+      // Apply floor and ceiling
+      withdrawal = Math.max(vpwFloor, Math.min(vpwCeiling, withdrawal));
+
+      vpwNW -= withdrawal;
+
+      if (vpwNW <= 0) {
+        vpwNW = 0;
+        if (!vpwCrossover) {
+          vpwCrossover = { scenarioId: 'vpw', year: y, age: currentAgeY };
+        }
+      }
+      vpwPoints.push({ year: y, age: currentAgeY, netWorth: vpwNW });
+    }
+    if (vpwCrossover) crossoverPoints.push(vpwCrossover);
+    scenarios.push({
+      id: 'vpw',
+      label: 'VPW (Variable %)',
+      color: '#ec4899',          // pink
+      strokeDasharray: '6 2 2 2 2 2',
+      strokeWidth: 2,
+      yearByYear: vpwPoints,
+    });
+  }
+
   return { scenarios, crossoverPoints };
 }
